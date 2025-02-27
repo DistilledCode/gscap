@@ -1,0 +1,7 @@
+black
+isort
+ipykernel
+jupyter
+./custom/gscbt-0.1.1-py3-none-any.whl
+-e ./custom/quantstats
+-e .
