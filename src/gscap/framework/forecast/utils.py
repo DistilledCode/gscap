@@ -91,7 +91,7 @@ def combined_forecast(instrument: Instrument, weights="corr", fdm_resample="W"):
         instrument.fw = np.array([1.0])
         _index = instrument.forecast[0].forecast_value.index
         instrument.fdm = pd.Series(1.0, index=_index, name="fdm")
-        return instrument.forecast[0].forecast_value
+        return instrument.forecast[0].forecast_value.squeeze()
 
     fdm = _get_fdm_calculate_fw(instrument, resample=fdm_resample, weights=weights)
 
@@ -103,5 +103,5 @@ def combined_forecast(instrument: Instrument, weights="corr", fdm_resample="W"):
         for fweight, fcast in zip(instrument.fw.values(), instrument.forecast)
     )
     _combined_fcast = _combined_fcast.squeeze() * fdm
-    _combined_clip = np.mean([i.clip for i in instrument.forecast])
-    return _combined_fcast.clip(-_combined_clip, _combined_clip)
+    clip = instrument.forecast[0].CLIP
+    return _combined_fcast.clip(-clip, clip).squeeze()

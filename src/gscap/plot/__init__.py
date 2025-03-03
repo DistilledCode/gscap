@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.graph_objects as go
 import quantstats._plotting.core as qsplot
+from matplotlib.ticker import FuncFormatter
 
 import gscap.metrics as metrics
 from gscap import SRC_DIR
@@ -25,13 +26,22 @@ def set_style():
 set_style()
 
 
+def _resample_series(series: pd.Series, resample):
+    return series.resample(resample).sum().dropna()
+
+
 def drawdown(
     return_series: pd.Series,
     benchmark: pd.Series = None,
     compound=False,
-    cumulative=False,
+    cumulative=True,
     fill=True,
+    show=False,
 ):
+    return_series = _resample_series(return_series, "D")
+    if benchmark is not None:
+        benchmark = _resample_series(benchmark, "D")
+
     if cumulative ^ compound is False:
         raise ValueError("Either of `compound` or `cumulative` must be True, not both")
     _ds = metrics.drawdown_series(return_series, compound, cumulative)
@@ -53,7 +63,8 @@ def drawdown(
         fontname="Fira Code",
         ylabel="Drawdown",
         hllabel="Average",
-        show=False,
+        figsize=(10, 6),
+        show=show,
     )
 
 
@@ -75,6 +86,7 @@ def position(position_series: pd.Series, benchmark: pd.Series = None, fill=False
         fontname="Fira Code",
         ylabel="Position Size",
         show=False,
+        figsize=(12, 6),
         percent=False,
     )
 
@@ -106,6 +118,7 @@ def turnover(
         title=f"Turnover; rolling {period=}",
         fontname="Fira Code",
         ylabel="Annualized Turnover",
+        figsize=(10, 6),
         show=False,
         percent=False,
     )
@@ -116,6 +129,8 @@ def return_histogram(
     benchmark: pd.Series = None,
     resample="ME",
     bins=30,
+    figsize=(10, 6),
+    show=False,
 ):
 
     title = f"Returns Histogram; {resample=}"
@@ -127,15 +142,62 @@ def return_histogram(
         bins=bins,
         resample=resample,
         title=title,
+        figsize=figsize,
+        show=show,
     )
 
 
+def eoy_returns(
+    return_series: pd.Series,
+    benchmark: pd.Series = None,
+    figsize=(12, 6),
+    show=False,
+):
+    if benchmark is not None:
+        cmb_rtrs = pd.concat([return_series, benchmark], axis=1)
+        color = ["#3698BF", "#FFB917"]
+    else:
+        cmb_rtrs = return_series
+        color = "#3698BF"
+    cmb_yrly_rtrs = cmb_rtrs.resample("YE").sum()
+    x = cmb_yrly_rtrs.plot.bar(
+        color=color,
+        width=0.75,
+        figsize=figsize,
+        alpha=0.75,
+    )
+    xticks = [
+        year if index % 3 == 0 else ""
+        for index, year in enumerate(cmb_yrly_rtrs.index.year)
+    ]
+    x.set_xticklabels(xticks)
+    plt.xticks(rotation=45, ha="right")  # 'ha' is horizontal alignment
+
+    def percentage_formatter(y, pos):
+        return f"{y*100:.00f}%"  # Format as percentage with no decimal places
+
+    x.margins(x=0.10)  # Adds 5% padding on the x-axis
+    x.yaxis.set_major_formatter(FuncFormatter(percentage_formatter))
+    x.set_title(
+        f"End of Year Cumulative Returns: "
+        f"{cmb_yrly_rtrs.index.year[0]} - {cmb_yrly_rtrs.index.year[-1]}"
+    )
+    if show:
+        plt.show()
+    else:
+        return x
+
+
 def returns(
-    returns: pd.Series,
+    return_series: pd.Series,
     benchmark: pd.Series = None,
     compound=False,
     cumulative=False,
+    show=False,
 ):
+    return_series = _resample_series(return_series, "D")
+    if benchmark is not None:
+        benchmark = _resample_series(benchmark, "D")
     if cumulative and compound is True:
         raise ValueError("Both `compound` and `cumulative` cannot be True")
 
@@ -143,17 +205,17 @@ def returns(
 
     if compound:
         _title = "Returns (Compounding)"
-        returns = returns.add(1).cumprod() - 1
+        return_series = return_series.add(1).cumprod() - 1
         if benchmark is not None:
             benchmark = benchmark.add(1).cumprod() - 1
     if cumulative:
         _title = "Returns (Cumulative)"
-        returns = returns.cumsum()
+        return_series = return_series.cumsum()
         if benchmark is not None:
             benchmark = benchmark.cumsum()
 
     return qsplot.plot_timeseries(
-        returns,
+        return_series,
         benchmark,
         cumulative=False,
         compound=False,
@@ -162,7 +224,8 @@ def returns(
         title=_title,
         fontname="Fira Code",
         ylabel=_title,
-        show=False,
+        figsize=(10, 6),
+        show=show,
     )
 
 
@@ -170,10 +233,14 @@ def rolling_volatility(
     return_series: pd.Series,
     benchmark: pd.Series = None,
     periods=14,
-    weights: Literal["equi", "ewma"] = "equi",
+    weights: Literal["equi", "ewma"] = "ewma",
     annualize=True,
     periods_per_year=252,
+    show=False,
 ):
+    return_series = _resample_series(return_series, "D")
+    if benchmark is not None:
+        benchmark = _resample_series(benchmark, "D")
 
     if weights == "ewma":
         halflife = periods // 2
@@ -222,7 +289,7 @@ def rolling_volatility(
         lw=LINE_WIDTH,
         figsize=(10, 6),
         subtitle=True,
-        show=False,
+        show=show,
     )
 
 
@@ -233,7 +300,11 @@ def rolling_sharpe(
     weights: Literal["equi", "ewma"] = "equi",
     annualize=True,
     periods_per_year=252,
+    show=False,
 ):
+    return_series = _resample_series(return_series, "D")
+    if benchmark is not None:
+        benchmark = _resample_series(benchmark, "D")
     if weights == "equi":
         title = f"Rolling Sharpe ({weights=}; {periods=})"
         _rs = metrics.rolling_sharpe(
@@ -283,86 +354,86 @@ def rolling_sharpe(
         lw=LINE_WIDTH,
         figsize=(10, 6),
         subtitle=True,
-        show=False,
+        show=show,
     )
 
 
-def volatility(df, rolling_window=14, annualize=True):
+# def volatility(df, rolling_window=14, annualize=True):
 
-    fig = go.Figure()
+#     fig = go.Figure()
 
-    for contract in df:
-        fig.add_trace(
-            go.Scatter(
-                x=df[contract].index,
-                y=metrics.equi_vol(
-                    df[contract],
-                    rolling_window=rolling_window,
-                    annualize=annualize,
-                ),
-                name=contract,
-            )
-        )
+#     for contract in df:
+#         fig.add_trace(
+#             go.Scatter(
+#                 x=df[contract].index,
+#                 y=metrics.equi_vol(
+#                     df[contract],
+#                     rolling_window=rolling_window,
+#                     annualize=annualize,
+#                 ),
+#                 name=contract,
+#             )
+#         )
 
-    if annualize:
-        _title = f"Annualized Rolling Volatility ({rolling_window} days)"
-    else:
-        _title = f"Daily Rolling Volatility ({rolling_window} days)"
-    fig.update_layout(
-        title=_title,
-        yaxis_title="Volatility",
-        # height=600,
-        # width=1400,
-        legend=dict(
-            title="Instruments",
-            itemclick="toggle",
-            itemdoubleclick="toggleothers",
-            orientation="v",
-        ),
-    )
-    fig.update_xaxes(rangeslider_visible=True)
-    fig.show()
+#     if annualize:
+#         _title = f"Annualized Rolling Volatility ({rolling_window} days)"
+#     else:
+#         _title = f"Daily Rolling Volatility ({rolling_window} days)"
+#     fig.update_layout(
+#         title=_title,
+#         yaxis_title="Volatility",
+#         # height=600,
+#         # width=1400,
+#         legend=dict(
+#             title="Instruments",
+#             itemclick="toggle",
+#             itemdoubleclick="toggleothers",
+#             orientation="v",
+#         ),
+#     )
+#     fig.update_xaxes(rangeslider_visible=True)
+#     fig.show()
 
 
-def vol_of_vol(df, rolling_window=14, annualize=True):
+# def vol_of_vol(df, rolling_window=14, annualize=True):
 
-    _vol = metrics.equi_vol(
-        df,
-        rolling_window=rolling_window,
-        annualize=annualize,
-    )
+#     _vol = metrics.equi_vol(
+#         df,
+#         rolling_window=rolling_window,
+#         annualize=annualize,
+#     )
 
-    fig = go.Figure()
+#     fig = go.Figure()
 
-    for contract in _vol.columns:
-        fig.add_trace(
-            go.Scatter(
-                x=_vol[contract].index,
-                y=metrics.equi_vol(
-                    _vol[contract],
-                    rolling_window=rolling_window,
-                    annualize=annualize,
-                ),
-                name=contract,
-            )
-        )
+#     for contract in _vol.columns:
+#         fig.add_trace(
+#             go.Scatter(
+#                 x=_vol[contract].index,
+#                 y=metrics.equi_vol(
+#                     _vol[contract],
+#                     rolling_window=rolling_window,
+#                     annualize=annualize,
+#                 ),
+#                 name=contract,
+#             )
+#         )
 
-    if annualize:
-        _title = f"Volatility (Annualized {rolling_window} days rolling)"
-    else:
-        _title = f"Volatility (Daily {rolling_window} days rolling)"
-    _title = "Volatility of " + _title
-    fig.update_layout(
-        title=_title,
-        yaxis_title="Volatility of Volatility",
-        # height=600,
-        # width=1400,
-        legend=dict(
-            title="Instruments",
-            itemclick="toggle",
-            itemdoubleclick="toggleothers",
-            orientation="v",
-        ),
-    )
-    fig.update_xaxes(rangeslider_visible=True)
-    fig.show()
+#     if annualize:
+#         _title = f"Volatility (Annualized {rolling_window} days rolling)"
+#     else:
+#         _title = f"Volatility (Daily {rolling_window} days rolling)"
+#     _title = "Volatility of " + _title
+#     fig.update_layout(
+#         title=_title,
+#         yaxis_title="Volatility of Volatility",
+#         # height=600,
+#         # width=1400,
+#         legend=dict(
+#             title="Instruments",
+#             itemclick="toggle",
+#             itemdoubleclick="toggleothers",
+#             orientation="v",
+#         ),
+#     )
+#     fig.update_xaxes(rangeslider_visible=True)
+#     fig.show()

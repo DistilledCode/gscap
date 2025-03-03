@@ -198,10 +198,28 @@ class Instrument:
         return self.cfs
 
     def __repr__(self):
-        return (
-            f"{self.meta.product} ({self.meta.symbol}, "
-            f"{self.meta.exchange}, {self.meta.currency})"
-        )
+        return f"{self.meta.symbol}, {self.meta.exchange}"
+        # return (
+        #     f"{self.meta.product} ({self.meta.symbol}, "
+        #     f"{self.meta.exchange}, {self.meta.currency})"
+        # )
 
     def __str__(self):
         return repr(self)
+
+    def __eq__(self, value):
+        if isinstance(value, Instrument):
+            return hash(self) == hash(value)
+        return False
+
+    def __hash__(self):
+        return hash(
+            (
+                self.meta.product,
+                self.meta.symbol,
+                self.meta.exchange,
+                self.meta.currency,
+                self.interval,
+                self.period,
+            )
+        )

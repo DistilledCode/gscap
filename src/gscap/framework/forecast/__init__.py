@@ -64,21 +64,21 @@ class EWMACForecast(Forecast):
         # self.clip = clip
         # self.abs_avg = abs_avg
         self.vol_span = vol_span
-        assert self.clip > 0, "Clip can only be positive"
+        # assert self.clip > 0, "Clip can only be positive"
 
     def generate_forecast(self, instrument: Instrument) -> pd.DataFrame:
 
         data = instrument.close_price()
 
-        ftrend = data.adjusted.ewm(span=self.fast_window).mean().shift(1)
-        strend = data.adjusted.ewm(span=self.slow_window).mean().shift(1)
-        price_volatility = data.adjusted.diff().ewm(span=self.vol_span).std().shift(1)
+        ftrend = data.adjusted.ewm(span=self.fast_window).mean()
+        strend = data.adjusted.ewm(span=self.slow_window).mean()
+        price_volatility = data.adjusted.diff().ewm(span=self.vol_span).std()
         raw_fcast = (ftrend - strend) / price_volatility
 
-        self.is_looking_ahead = False
         scaled_fcast = raw_fcast * self.ABS_AVG / raw_fcast.abs().expanding().mean()
         clipped_fcast = scaled_fcast.clip(-self.CLIP, self.CLIP)
-        self.forecast_value = clipped_fcast
+        self.forecast_value = clipped_fcast.shift(1)
+        self.is_looking_ahead = False
         self.is_generated = True
 
     def __repr__(self):
@@ -89,7 +89,7 @@ class EWMACForecast(Forecast):
         )
 
 
-class BuyAndHold(Forecast):
+class VolTargetLongOnly(Forecast):
 
     def __init__(self):
         super().__init__()
@@ -104,7 +104,7 @@ class BuyAndHold(Forecast):
         )
 
         self.is_looking_ahead = False
-        self.forecast = _forecast
+        self.forecast_value = _forecast
         self.is_generated = True
 
     def __repr__(self):
