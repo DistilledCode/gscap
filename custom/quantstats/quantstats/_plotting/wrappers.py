@@ -978,7 +978,7 @@ def monthly_heatmap(
     # _sns.set(font_scale=.9)
     if active and benchmark is not None:
         ax.set_title(
-            f"{returns_label} - Monthly Active Returns (%)\n",
+            f"{returns_label}: Monthly Active Returns (%)\n",
             fontsize=14,
             y=0.995,
             fontname=fontname,
@@ -1005,7 +1005,7 @@ def monthly_heatmap(
         )
     else:
         ax.set_title(
-            f"{returns_label} - Monthly Returns (%)\n",
+            f"{returns_label}: Monthly Returns (%)\n",
             fontsize=12,
             y=0.995,
             fontname=fontname,

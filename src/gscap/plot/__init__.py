@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import quantstats._plotting.core as qsplot
 from matplotlib.ticker import FuncFormatter
+from quantstats._plotting.wrappers import monthly_heatmap as _monthly_heatmap
 
 import gscap.metrics as metrics
 from gscap import SRC_DIR
@@ -28,6 +29,33 @@ set_style()
 
 def _resample_series(series: pd.Series, resample):
     return series.resample(resample).sum().dropna()
+
+
+def monthly_heatmap(
+    return_series: pd.Series,
+    benchmark: pd.Series = None,
+    title="Strategy",
+    figsize=(10, 7),
+    show=True,
+):
+    _ftitle = title if return_series.name is None else return_series.name
+    if benchmark is None:
+        active = False
+        title = _ftitle
+    else:
+        active = True
+        title = f"{_ftitle} - {benchmark.name}"
+    return _monthly_heatmap(
+        return_series,
+        benchmark=benchmark,
+        figsize=figsize,
+        annot_size=11,
+        returns_label=title,
+        compounded=False,
+        fontname="Fira Code",
+        show=show,
+        active=active,
+    )
 
 
 def drawdown(
@@ -232,7 +260,7 @@ def returns(
 def rolling_volatility(
     return_series: pd.Series,
     benchmark: pd.Series = None,
-    periods=14,
+    periods=10,
     weights: Literal["equi", "ewma"] = "ewma",
     annualize=True,
     periods_per_year=252,

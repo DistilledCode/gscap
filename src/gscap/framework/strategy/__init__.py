@@ -12,7 +12,9 @@ from gscap.framework.instruments import Instrument
 from gscap.framework.subsystem import SubSystem
 from gscap.framework.utils import calculate_idm
 from gscap.utils import buffer
-import matplotlib.pyplot as plt
+
+# import matplotlib.pyplot as plt
+from gscap.framework.strategy.analyse import _analyse, _metric_table
 
 
 def instrument_weight(returns: pd.DataFrame, resample="YE", n_itr=100, frac=0.1):
@@ -119,14 +121,14 @@ class Strategy:
     # ! This bad boy will get parallelized!!
     def _calculate_ss_positions(self):
         for ss in self.subsystems:
-            # print(ss, end="")
+            print(ss, end="")
             if self.idm is None:
                 # As IDM series is None, we are calculating ss positions for the first time
-                # print(":\tfirst time")
+                print(":\tfirst time")
                 ss.position = ss.position * self.risk_weights.get(ss.instrument)
             elif isinstance(self.idm, pd.Series):
                 # We got IDM, we are just scaling our positions
-                # print(":\tscaling position with IDM")
+                print(":\tscaling position with IDM")
                 ss.position = ss.position.multiply(self.idm, axis=0)
             if self.buffer_fraction:
                 ss.position = buffer(ss.position, fraction=self.buffer_fraction)
@@ -151,31 +153,29 @@ class Strategy:
 
     def compile(self):
         self.init()
-        # print("Calculating SS positions")
+        print("Calculating SS positions")
         self._calculate_ss_positions()
-        # print("Calculating initial SS returns")
+        print("Calculating initial SS returns")
         self._calculate_ss_return_series()
-        # print("Calculating Instrument Weights")
+        print("Calculating Instrument Weights")
         self._calculate_instrument_weights()
         # return
-        # print("Calculating IDM")
+        print("Calculating IDM")
         # s = perf_counter()
         self._calculate_idm()
         # print(perf_counter() - s)
-        # print("Recalculating SS positions")
+        print("Recalculating SS positions")
         self._calculate_ss_positions()
-        # print("Recalculating SS returns")
+        print("Recalculating SS returns")
         self._calculate_ss_return_series()
 
-    def stats(self):
-        
-        pass
-
     def analyse(self, show=True):
-        plot.returns(self.aggr_return_series, cumulative=False, show=show)
-        plot.returns(self.aggr_return_series, cumulative=True, show=show)
-        plot.return_histogram(self.aggr_return_series, show=show)
-        plot.eoy_returns(self.aggr_return_series, show=show)
-        plot.rolling_volatility(self.aggr_return_series, show=show)
-        plot.rolling_sharpe(self.aggr_return_series, show=show)
-        plot.drawdown(self.aggr_return_series, show=show)
+        _analyse(self, show=show)
+        _metric_table(self)
+
+    def compare(self, other_strategy, show=True):
+        if not isinstance(other_strategy, Strategy):
+            raise ValueError("Pass another `Strategy` instance for comaparison")
+
+        _analyse(self, benchmark=other_strategy, show=show)
+        _metric_table(self, benchmark=other_strategy)
