@@ -16,7 +16,8 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
-    "pip==25.0",
+    "pip<=25.0",
+    "ipython<=8.32.0",
     "setuptools==75.8.0",
     "wheel==0.45.1",
     "missingno==0.5.2",
