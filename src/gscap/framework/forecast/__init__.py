@@ -61,10 +61,7 @@ class EWMACForecast(Forecast):
         super().__init__()
         self.fast_window = fast_window
         self.slow_window = slow_window if slow_window is not None else fast_window * 4
-        # self.clip = clip
-        # self.abs_avg = abs_avg
         self.vol_span = vol_span
-        # assert self.clip > 0, "Clip can only be positive"
 
     def generate_forecast(self, instrument: Instrument) -> pd.DataFrame:
 
@@ -83,9 +80,8 @@ class EWMACForecast(Forecast):
 
     def __repr__(self):
         return (
-            f"EWMACForecast(fast_window={self.fast_window}, slow_window={self.slow_window}, "
-            f"clip={self.CLIP}, abs_avg={self.ABS_AVG}, "
-            f"vol_span={self.vol_span})"
+            f"EWMACForecast({self.fast_window}, {self.slow_window}, "
+            f"{self.CLIP}, {self.ABS_AVG}, {self.vol_span})"
         )
 
 

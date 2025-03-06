@@ -164,6 +164,6 @@ def tail_ratios(return_series: pd.Series):
 
 
 def turnover_series(position_series: pd.Series, annualize=True) -> pd.Series:
-    _annualize_factor = 1 if annualize is False else 256
+    _annualize_factor = 1 if annualize is False else 252
     _tseries = position_series.diff().abs() / position_series.shift(1)
     return _tseries * _annualize_factor

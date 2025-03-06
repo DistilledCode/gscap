@@ -5,16 +5,17 @@ from typing import Any, Literal, Optional
 import numpy as np
 import pandas as pd
 from gscbt.utils import Dotdict
-from gscap import plot
+
 import gscap
+from gscap import plot
 from gscap.framework.forecast import Forecast
 from gscap.framework.instruments import Instrument
+
+# import matplotlib.pyplot as plt
+from gscap.framework.strategy.analyse import _metric_table, _strategy_plots
 from gscap.framework.subsystem import SubSystem
 from gscap.framework.utils import calculate_idm
 from gscap.utils import buffer
-
-# import matplotlib.pyplot as plt
-from gscap.framework.strategy.analyse import _analyse, _metric_table
 
 
 def instrument_weight(returns: pd.DataFrame, resample="YE", n_itr=100, frac=0.1):
@@ -170,12 +171,12 @@ class Strategy:
         self._calculate_ss_return_series()
 
     def analyse(self, show=True):
-        _analyse(self, show=show)
+        _strategy_plots(self, show=show)
         _metric_table(self)
 
     def compare(self, other_strategy, show=True):
         if not isinstance(other_strategy, Strategy):
             raise ValueError("Pass another `Strategy` instance for comaparison")
 
-        _analyse(self, benchmark=other_strategy, show=show)
+        _strategy_plots(self, benchmark=other_strategy, show=show)
         _metric_table(self, benchmark=other_strategy)

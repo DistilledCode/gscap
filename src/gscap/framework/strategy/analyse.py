@@ -1,18 +1,19 @@
 from __future__ import annotations
-from prettytable import PrettyTable
-import gscap
-from gscap.metrics import tail_ratios, drawdown_series
-from gscap import plot
-import numpy as np
-
 
 from typing import TYPE_CHECKING
+
+import numpy as np
+from prettytable import PrettyTable
+
+import gscap
+from gscap import plot
+from gscap.metrics import drawdown_series, tail_ratios
 
 if TYPE_CHECKING:
     from gscap.framework.strategy import Strategy
 
 
-def _analyse(main_strat: Strategy, benchmark: Strategy = None, show=True):
+def _strategy_plots(main_strat: Strategy, benchmark: Strategy = None, show=True):
     main_rs = main_strat.aggr_return_series
     bench_rs = benchmark.aggr_return_series if benchmark is not None else None
     plot.returns(main_rs, benchmark=bench_rs, cumulative=False, show=show)
@@ -33,13 +34,19 @@ def stats(strat: Strategy):
     yearly_rtr = strat.aggr_return_series.resample("YE").sum().dropna()
     annualized_daily_rtr = daily_rtr.mean() * gscap.DAYS_IN_YEAR
     annualized_daily_std = daily_rtr.std() * np.sqrt(gscap.DAYS_IN_YEAR)
+    daily_sharpe = annualized_daily_rtr / annualized_daily_std
+
+    annualized_monthly_rtr = monthly_rtr.mean() * 12
+    annualized_monthly_std = monthly_rtr.std() * np.sqrt(12)
+    monthly_sharpe = annualized_monthly_rtr / annualized_monthly_std
+
     dd = drawdown_series(daily_rtr, cumulative=True)
     max_dd = dd.min() * 100
     mean_dd = dd.mean() * 100
-    sharpe = annualized_daily_rtr / annualized_daily_std
     tratios_daily = tail_ratios(daily_rtr)
     tratios_monthly = tail_ratios(monthly_rtr)
-    skew = daily_rtr.skew()
+    daily_skew = daily_rtr.skew()
+    monthly_skew = monthly_rtr.skew()
     expected_daily_rtr = daily_rtr.mean() * 100
     expected_monthly_rtr = monthly_rtr.mean() * 100
     expected_yearly_rtr = yearly_rtr.mean() * 100
@@ -64,15 +71,21 @@ def stats(strat: Strategy):
     win_years = yearly_rtr[yearly_rtr > 0].count() / len(yearly_rtr) * 100
 
     return {
-        "top": {
+        "top00": {
             "Annualized Daily Return": annualized_daily_rtr * 100,
             "Annualized Daily Volatility": annualized_daily_std * 100,
-            "Annualized Sharpe Ratio": sharpe,
+            "Annualized Daily SR": daily_sharpe,
+        },
+        "top01": {
+            "Annualized Monthly Return": annualized_monthly_rtr * 100,
+            "Annualized Monthly Volatility": annualized_monthly_std * 100,
+            "Annualized Monthly SR": monthly_sharpe,
         },
         "risk": {
             "Max Drawdown": max_dd,
             "Mean Drawdown": mean_dd,
-            "Skew (Daily Return)": skew,
+            "Skew (Daily Return)": daily_skew,
+            "Skew (Monthly Return)": monthly_skew,
         },
         "skew_kurt": {
             "Left Tail Ratio (Daily)": tratios_daily["left"],
