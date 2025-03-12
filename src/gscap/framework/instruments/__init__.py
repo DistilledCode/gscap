@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Literal
 
 import numpy as np
@@ -223,3 +224,7 @@ class Instrument:
                 self.period,
             )
         )
+
+    def clone(self):
+        """Return a deep copy of the forecast instance."""
+        return deepcopy(self)

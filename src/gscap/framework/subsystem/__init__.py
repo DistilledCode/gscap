@@ -1,10 +1,13 @@
+import numpy as np
 import pandas as pd
 from gscbt.framework import volatility_scalar
 
 import gscap
 from gscap.framework.forecast import Forecast
 from gscap.framework.instruments import Instrument
-from gscap.utils import percentage_returns_series
+from gscap.framework.subsystem.calculations import (percentage_returns_series,
+                                                    prs_with_cost)
+from gscap.framework.utils import Cost, get_th_series
 
 
 def get_returns(price_df=pd.DataFrame):
@@ -14,24 +17,37 @@ def get_returns(price_df=pd.DataFrame):
 class SubSystem:
     def __init__(
         self,
-        instruement: Instrument,
+        instrument: Instrument,
         forecasts: list[Forecast] | Forecast,
-        unit_cash_vol_tgt: float,
+        annual_cash_vol_tgt: float,
         capital: float | int = 1_000_000,
         fdm_resample="B",
+        include_cost: bool = True,
     ):
-        self.instrument = instruement
+        self.instrument = instrument.clone()
         self.forecasts = (
             [i.clone() for i in forecasts]
             if isinstance(forecasts, list)
             else forecasts.clone()
         )
-        self.unit_cv_target = unit_cash_vol_tgt
+        self.annual_cv_target = annual_cash_vol_tgt
         self.fdm_resample = fdm_resample
         self.capital = capital
+        self.include_cost = include_cost
         self._volatility_scalar = None
         self._position = None
         self.return_series = None
+        self.slippage_cost_currency = None
+        self.commission_cost_currency = None
+        self.risk_adj_cost_per_lot = None
+        self.cost = Cost()
+        if self.instrument.interval == "5m":
+            if self.instrument.meta.trading_hours < 0:
+                self.instrument.meta.trading_hours = get_th_series(self.instrument)
+            intv_num = gscap.DAYS_IN_YEAR * self.instrument.meta.trading_hours * 60 / 5
+        elif self.instrument.interval == "1d":
+            intv_num = gscap.DAYS_IN_YEAR
+        self.unit_cv_target = self.annual_cv_target / np.sqrt(intv_num)
 
     @property
     def volatility_scalar(self) -> pd.Series:
@@ -48,6 +64,18 @@ class SubSystem:
 
     @property
     def position(self) -> pd.Series:
+        """
+        # Regarding rounding off
+        - SubSystem positions will stay unrounded as buffering requires unrounded positions
+        - If the Strategy class doesn't buffer the positions then SubSystem postions will
+            stay unrouded, else they'll be rounded
+        - Positions of all instrument in Strategy attribute `positions` are rounded
+        - For return_series calculation, we'll explicitly round the postion inside the func
+
+        # Regarding scaling with risk weights
+        - in `_calculate_ss_positions()` method of Strategy the  `.position` attribute of
+            SubSystem get scaled down with the risk weight.
+        """
         if self._position is None:
             if self.instrument.cfs is None:
                 self._process_forecasts()
@@ -62,7 +90,6 @@ class SubSystem:
 
     @position.setter
     def position(self, value: pd.Series) -> None:
-
         self._position = value
         self._position.name = self.instrument.meta.symbol.lower()
 
@@ -72,13 +99,17 @@ class SubSystem:
         self.instrument.combine_forecast(resample=self.fdm_resample)
 
     def calculate_return_series(self) -> pd.Series:
-        _prs = percentage_returns_series(
-            self.position,
-            self.instrument.close_price().adjusted,
-            multiplier=self.instrument.meta.dollar_equivalent,
-            capital_series=self.capital,
-            fx_series=None,
-        )
+        if self.include_cost is False:
+            _prs = percentage_returns_series(
+                self.position,
+                self.instrument.close_price().adjusted,
+                multiplier=self.instrument.meta.dollar_equivalent,
+                capital_series=self.capital,
+                fx_series=None,
+            )
+            self._set_cost_zero()
+        else:
+            _prs = prs_with_cost(self, capital_series=self.capital, fx_series=None)
         self.return_series = _prs.fillna(0)
         self.return_series.name = self.instrument.meta.symbol.lower()
         return self.return_series
@@ -89,3 +120,10 @@ class SubSystem:
             f"{self.instrument}, {self.instrument.interval}, "
             f"{self.instrument.period}, {_n}"
         )
+
+    def _set_cost_zero(self):
+        self.cost.slippage_currency = pd.Series(0.0, index=self.position.index)
+        self.cost.commission_currency = pd.Series(0.0, index=self.position.index)
+        self.cost.total_currency = pd.Series(0.0, index=self.position.index)
+        self.cost.risk_adj_per_lot = pd.Series(0.0, index=self.position.index)
+        self.cost.return_series = pd.Series(0.0, index=self.position.index)
