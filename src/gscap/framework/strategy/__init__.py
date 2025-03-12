@@ -11,12 +11,12 @@ import gscap
 # from gscap import plot
 from gscap.framework.forecast import Forecast
 from gscap.framework.instruments import Instrument
-from gscap.framework.utils import analyse_cost
 
 # import matplotlib.pyplot as plt
 from gscap.framework.strategy.analyse import _metric_table, _strategy_plots
 from gscap.framework.strategy.calculations import buffer, calculate_idm
 from gscap.framework.subsystem import SubSystem
+from gscap.framework.utils import analyse_cost
 
 
 def instrument_weight(returns: pd.DataFrame, resample="YE", n_itr=100, frac=0.1):

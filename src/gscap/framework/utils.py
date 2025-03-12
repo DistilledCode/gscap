@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 from pandas import Series
+
 from gscap import plot
 from gscap.framework.instruments import Instrument
 

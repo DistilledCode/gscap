@@ -6,11 +6,12 @@ import gscap
 
 # from gscap import plot
 from gscap.framework.forecast import Forecast
-from gscap.framework.utils import analyse_cost
 from gscap.framework.instruments import Instrument
-from gscap.framework.subsystem.calculations import percentage_returns_series
-from gscap.framework.subsystem.calculations import prs_with_cost
-from gscap.framework.utils import Cost, get_th_series
+from gscap.framework.subsystem.calculations import (
+    percentage_returns_series,
+    prs_with_cost,
+)
+from gscap.framework.utils import Cost, analyse_cost, get_th_series
 
 
 def get_returns(price_df=pd.DataFrame):
@@ -25,7 +26,6 @@ class SubSystem:
         annual_cash_vol_tgt: float,
         capital: float | int = 1_000_000,
         fdm_resample="B",
-        include_cost: bool = True,
     ):
         self.instrument = instrument.clone()
         self.forecasts = (
@@ -36,7 +36,6 @@ class SubSystem:
         self.annual_cv_target = annual_cash_vol_tgt
         self.fdm_resample = fdm_resample
         self.capital = capital
-        self.include_cost = include_cost
         self._volatility_scalar = None
         self._position = None
         self.return_series = None
@@ -102,17 +101,17 @@ class SubSystem:
         self.instrument.combine_forecast(resample=self.fdm_resample)
 
     def calculate_return_series(self) -> pd.Series:
-        if self.include_cost is False:
-            _prs = percentage_returns_series(
-                self.position,
-                self.instrument.close_price().adjusted,
-                multiplier=self.instrument.meta.dollar_equivalent,
-                capital_series=self.capital,
-                fx_series=None,
-            )
-            self._set_cost_zero()
-        else:
-            _prs = prs_with_cost(self, capital_series=self.capital, fx_series=None)
+        # if self.include_cost is False:
+        #     _prs = percentage_returns_series(
+        #         self.position,
+        #         self.instrument.close_price().adjusted,
+        #         multiplier=self.instrument.meta.dollar_equivalent,
+        #         capital_series=self.capital,
+        #         fx_series=None,
+        #     )
+        #     self._set_cost_zero()
+        # else:
+        _prs = prs_with_cost(self, capital_series=self.capital, fx_series=None)
         self.return_series = _prs.fillna(0.0)
         self.return_series.name = self.instrument.meta.symbol.lower()
         return self.return_series
