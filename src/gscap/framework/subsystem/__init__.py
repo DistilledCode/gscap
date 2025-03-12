@@ -3,10 +3,13 @@ import pandas as pd
 from gscbt.framework import volatility_scalar
 
 import gscap
+
+# from gscap import plot
 from gscap.framework.forecast import Forecast
+from gscap.framework.utils import analyse_cost
 from gscap.framework.instruments import Instrument
-from gscap.framework.subsystem.calculations import (percentage_returns_series,
-                                                    prs_with_cost)
+from gscap.framework.subsystem.calculations import percentage_returns_series
+from gscap.framework.subsystem.calculations import prs_with_cost
 from gscap.framework.utils import Cost, get_th_series
 
 
@@ -73,8 +76,8 @@ class SubSystem:
         - For return_series calculation, we'll explicitly round the postion inside the func
 
         # Regarding scaling with risk weights
-        - in `_calculate_ss_positions()` method of Strategy the  `.position` attribute of
-            SubSystem get scaled down with the risk weight.
+        - in `_calculate_ss_positions()` method of Strategy the `.position` attribute of
+            SubSystem get scaled down with the risk weight and then we calculate the returns.
         """
         if self._position is None:
             if self.instrument.cfs is None:
@@ -110,7 +113,7 @@ class SubSystem:
             self._set_cost_zero()
         else:
             _prs = prs_with_cost(self, capital_series=self.capital, fx_series=None)
-        self.return_series = _prs.fillna(0)
+        self.return_series = _prs.fillna(0.0)
         self.return_series.name = self.instrument.meta.symbol.lower()
         return self.return_series
 
@@ -127,3 +130,10 @@ class SubSystem:
         self.cost.total_currency = pd.Series(0.0, index=self.position.index)
         self.cost.risk_adj_per_lot = pd.Series(0.0, index=self.position.index)
         self.cost.return_series = pd.Series(0.0, index=self.position.index)
+
+    def analyse_cost(self, show=True):
+        analyse_cost(
+            return_series=self.return_series,
+            cost_return_series=self.cost.return_series,
+            show=show,
+        )

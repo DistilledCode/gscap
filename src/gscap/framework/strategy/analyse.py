@@ -28,10 +28,13 @@ def _strategy_plots(main_strat: Strategy, benchmark: Strategy = None, show=True)
 
 def stats(strat: Strategy):
 
-    daily_rtr = strat.aggr_return_series.resample("D").sum().dropna()
-    monthly_rtr = strat.aggr_return_series.resample("ME").sum().dropna()
+    daily_rtr = strat.aggr_return_series.resample("D").sum()
+    daily_rtr = daily_rtr[~daily_rtr.eq(0.0)]
+    monthly_rtr = strat.aggr_return_series.resample("ME").sum()
+    monthly_rtr = monthly_rtr[~monthly_rtr.eq(0.0)]
+    yearly_rtr = strat.aggr_return_series.resample("YE").sum()
+    yearly_rtr = yearly_rtr[~yearly_rtr.eq(0.0)]
 
-    yearly_rtr = strat.aggr_return_series.resample("YE").sum().dropna()
     annualized_daily_rtr = daily_rtr.mean() * gscap.DAYS_IN_YEAR
     annualized_daily_std = daily_rtr.std() * np.sqrt(gscap.DAYS_IN_YEAR)
     daily_sharpe = annualized_daily_rtr / annualized_daily_std

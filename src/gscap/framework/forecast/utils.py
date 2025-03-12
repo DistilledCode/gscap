@@ -82,7 +82,7 @@ def _get_fdm_calculate_fw(instrument: Instrument, resample="W", weights: str = "
     return instrument.fdm
 
 
-def combined_forecast(instrument: Instrument, weights="corr", fdm_resample="W"):
+def combined_forecast(instrument: Instrument, weights="corr", fdm_resample="B"):
     if instrument.forecast is None:
         raise AttributeError(f"No forecast(s) found for {instrument}")
     if any([f.forecast_value is None for f in instrument.forecast]):

@@ -28,7 +28,8 @@ set_style()
 
 
 def _resample_series(series: pd.Series, resample):
-    return series.resample(resample).sum().dropna()
+    _s = series.resample(resample).sum()
+    return _s[~_s.eq(0.0)]
 
 
 def monthly_heatmap(
@@ -127,12 +128,14 @@ def turnover(
 ):
     _ts = metrics.turnover_series(position_series)
     _ts = _ts.rolling(period, min_periods=period).mean()
+    _ts.dropna(inplace=True)
+
     if benchmark is not None:
         _bts = metrics.turnover_series(benchmark)
         _bts = _bts.rolling(period, min_periods=period).mean()
-
-    _ts.dropna(inplace=True)
-    _bts.dropna(inplace=True)
+        _bts.dropna(inplace=True)
+    else:
+        _bts = None
     return qsplot.plot_timeseries(
         _ts,
         _bts,
@@ -159,9 +162,11 @@ def return_histogram(
     bins=30,
     figsize=(10, 6),
     show=False,
+    granular_returns=False,
+    title="Returns Histogram",
 ):
 
-    title = f"Returns Histogram; {resample=}"
+    title = f"{title}; {resample=}"
     return qsplot.plot_histogram(
         return_series,
         benchmark=benchmark,
@@ -172,6 +177,7 @@ def return_histogram(
         title=title,
         figsize=figsize,
         show=show,
+        granular_returns=granular_returns,
     )
 
 
@@ -222,6 +228,7 @@ def returns(
     compound=False,
     cumulative=False,
     show=False,
+    title="Returns",
 ):
     return_series = _resample_series(return_series, "D")
     if benchmark is not None:
@@ -229,15 +236,15 @@ def returns(
     if cumulative and compound is True:
         raise ValueError("Both `compound` and `cumulative` cannot be True")
 
-    _title = "Returns"
+    _title = title
 
     if compound:
-        _title = "Returns (Compounding)"
+        _title = f"{title} (Compounding)"
         return_series = return_series.add(1).cumprod() - 1
         if benchmark is not None:
             benchmark = benchmark.add(1).cumprod() - 1
     if cumulative:
-        _title = "Returns (Cumulative)"
+        _title = f"{title} (Cumulative)"
         return_series = return_series.cumsum()
         if benchmark is not None:
             benchmark = benchmark.cumsum()

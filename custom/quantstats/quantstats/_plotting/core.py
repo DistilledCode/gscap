@@ -428,6 +428,7 @@ def plot_histogram(
     compounded=True,
     savefig=None,
     show=True,
+    granular_returns=False,
 ):
 
     # colors = ['#348dc1', '#003366', 'red']
@@ -565,9 +566,14 @@ def plot_histogram(
         )
 
     # _plt.setp(x.get_legend().get_texts(), fontsize=11)
-    ax.xaxis.set_major_formatter(
-        _plt.FuncFormatter(lambda x, loc: "{:,}%".format(int(x * 100)))
-    )
+    if not granular_returns:
+        ax.xaxis.set_major_formatter(
+            _plt.FuncFormatter(lambda x, loc: "{:,}%".format(int(x * 100)))
+        )
+    else:
+        ax.xaxis.set_major_formatter(
+            _plt.FuncFormatter(lambda x, loc: "{:,.3f}%".format(x * 100))
+        )
 
     # Removed static lines for clarity
     # ax.axhline(0.01, lw=1, color="#000000", zorder=2)

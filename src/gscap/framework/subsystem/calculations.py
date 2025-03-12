@@ -118,6 +118,8 @@ def prs_with_cost(
     ss.cost.commission_currency = commission_cost_currency * fx_series_aligned
     ss.cost.total_currency = tcost_base_currency
     ss.cost.return_series = cost_in_perc
+    ss.cost.return_series.name = ss.instrument.meta.symbol.lower()
+
     ss.cost.risk_adj_per_lot = (tcost_base_currency / lots_traded) / (
         _annual_rolling_price_vol * instrument.meta.dollar_equivalent
     )

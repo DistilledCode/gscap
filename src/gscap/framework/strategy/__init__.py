@@ -7,9 +7,12 @@ import pandas as pd
 from gscbt.utils import Dotdict
 
 import gscap
+
 # from gscap import plot
 from gscap.framework.forecast import Forecast
 from gscap.framework.instruments import Instrument
+from gscap.framework.utils import analyse_cost
+
 # import matplotlib.pyplot as plt
 from gscap.framework.strategy.analyse import _metric_table, _strategy_plots
 from gscap.framework.strategy.calculations import buffer, calculate_idm
@@ -38,7 +41,7 @@ class Strategy:
         risk_weights=None,
         buffer_fraction: Optional[float] = None,
         name: Optional[str] = "strategy_xx",
-        include_cost: bool = True,
+        # include_cost: bool = True,
     ):
         self.name = name
         self.contracts = contracts
@@ -51,11 +54,13 @@ class Strategy:
         self.fdm_resample = gscap.FDM_RESAMPLE if fdm_resample is None else fdm_resample
         self.risk_weights = risk_weights
         self.buffer_fraction = buffer_fraction
-        self.include_cost = include_cost
+        # self.include_cost = include_cost
         self.fmapping = None
         self.subsystems = None
         self.indv_return_series: pd.DataFrame = None
         self.aggr_return_series: pd.Series = None
+        self.indv_cost_return_series: pd.DataFrame = None
+        self.aggr_cost_return_series: pd.Series = None
         self.instrument_weights: pd.DataFrame = None
         self.idm: Optional[pd.Series] = None
 
@@ -76,7 +81,7 @@ class Strategy:
                 annual_cash_vol_tgt=self.annual_cvt,
                 fdm_resample=self.fdm_resample,
                 capital=self.capital,
-                include_cost=self.include_cost,
+                # include_cost=self.include_cost,
             )
             for inst, fcasts in self.fmapping.items()
         ]
@@ -111,6 +116,13 @@ class Strategy:
         )
         self.aggr_return_series = self.indv_return_series.sum(axis=1)
         self.aggr_return_series.name = self.name
+
+        self.indv_cost_return_series = pd.concat(
+            [ss.cost.return_series for ss in self.subsystems],
+            axis=1,
+        )
+        self.aggr_cost_return_series = self.indv_cost_return_series.sum(axis=1)
+        self.aggr_cost_return_series.name = f"{self.name} Cost"
 
     def _calculate_instrument_weights(self):
         self.instrument_weights = instrument_weight(self.indv_return_series)
@@ -206,3 +218,10 @@ class Strategy:
                 f"Can only be `None` or `float`",
             )
             raise ValueError(_str)
+
+    def analyse_cost(self, show=True):
+        analyse_cost(
+            return_series=self.aggr_return_series,
+            cost_return_series=self.aggr_cost_return_series,
+            show=show,
+        )

@@ -17,7 +17,7 @@ DAYS_IN_WEEK = 5
 DAYS_IN_MONTH = 22
 HOURS_IN_DAY = 23
 MINUTES_IN_YEAR = DAYS_IN_YEAR * HOURS_IN_DAY * 60
-FDM_RESAMPLE = "W"
-IDM_RESAMPLE = "W"
+FDM_RESAMPLE = "B"
+IDM_RESAMPLE = "B"
 # Assuming daily data, lookback period is one week, for 5 min data it'll be one hour (12)
 VOL_LOOKBACK_SPAN = None

@@ -18,7 +18,7 @@ from scipy.optimize import minimize
 #     _vol_fast = temp["unit_returns"].ewm(span=span).std()
 #     _vol_slow = temp["unit_returns"].ewm(halflife=span * 2).std()
 
-#     temp["unit_volatility"] = pd.Series(
+#     temp["unit_vol"] = pd.Series(
 #         np.where(
 #             _vol_fast < _vol_slow * 0.30,
 #             _vol_slow,
@@ -26,20 +26,21 @@ from scipy.optimize import minimize
 #         ),
 #         index=_vol_fast.index,
 #     )
-#     # temp["unit_volatility"] = temp["unit_returns"].ewm(span = span).std()
+#     # temp["unit_vol"] = temp["unit_returns"].ewm(span = span).std()
 
 #     temp["block_value"] = (
 #         price_df.underlying[ticker.symbol.lower()] * ticker.currency_multiplier
 #     )
-#     temp["instrument_currency_volatility"] = (
-#         temp["unit_volatility"] * temp["block_value"]
+#     temp["instrument_currency_vol"] = (
+#         temp["unit_vol"] * temp["block_value"]
 #     )
-#     temp["volatility_scalar"] = (
-#         unit_cash_volatility_target / temp["instrument_currency_volatility"]
+#     temp["vol_scalar"] = (
+#         unit_cash_volatility_target / temp["instrument_currency_vol"]
 #     )
-#     temp["volatility_scalar"] = temp["volatility_scalar"].shift(1)
+#     temp["vol_scalar"] = temp["vol_scalar"].shift(1)
 
-#     return temp[["volatility_scalar"]].squeeze()
+#     return temp[["vol_scalar"]].squeeze()
+
 
 @jit(forceobj=True)
 def volatility_scalar(
@@ -53,11 +54,11 @@ def volatility_scalar(
     temp = pd.DataFrame()
     temp["unit_returns"] = return_callable(price_df)
     temp["unit_returns"] = temp["unit_returns"].fillna(0)
-    temp["unit_volatility"] = temp["unit_returns"].ewm(span=span).std()
+    temp["unit_vol"] = temp["unit_returns"].ewm(span=span).std()
 
     n = len(temp)
     underlying_price = price_df.underlying[ticker.symbol.lower()].values
-    unit_vol = temp["unit_volatility"].values
+    unit_vol = temp["unit_vol"].values
     equal_price_counter = np.zeros(n, dtype=int)
     vol_resume = span
 
@@ -72,22 +73,19 @@ def volatility_scalar(
             for j in range(vol_resume):
                 if i + j < n:
                     unit_vol[i + j] = unit_vol[i - 1]
-                    
+
     for i in range(1, n):
         if unit_vol[i] == 0:
             unit_vol[i] = np.nan
-    temp["unit_volatility"] = unit_vol
-    temp["block_value"] = (
-        price_df.underlying[ticker.symbol.lower()] * ticker.currency_multiplier
-    )
-    temp["instrument_currency_volatility"] = (
-        temp["unit_volatility"] * temp["block_value"]
-    )
-    temp["volatility_scalar"] = (
-        unit_cash_volatility_target / temp["instrument_currency_volatility"]
-    )
-    temp["volatility_scalar"] = temp["volatility_scalar"].shift(1)
-    return temp[["volatility_scalar"]].squeeze()
+            
+    temp["unit_vol"] = unit_vol
+    temp["block_value"] = price_df.underlying[ticker.symbol.lower()]
+    temp["block_value"] *= ticker.currency_multiplier
+
+    temp["instrument_currency_vol"] = temp["unit_vol"] * temp["block_value"]
+    temp["vol_scalar"] = unit_cash_volatility_target / temp["instrument_currency_vol"]
+    temp["vol_scalar"] = temp["vol_scalar"].shift(1)
+    return temp[["vol_scalar"]].squeeze()
 
 
 def correlation(returns):
