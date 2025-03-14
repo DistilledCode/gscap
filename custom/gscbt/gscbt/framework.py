@@ -4,6 +4,78 @@ from numba import jit
 from scipy.optimize import minimize
 
 
+def volatility_scalar(
+    price_df: pd.DataFrame,
+    ticker,
+    unit_cash_volatility_target,
+    slow_span=None,
+    fast_span=None,
+):
+
+    und = price_df.underlying.squeeze()
+
+    vps_slow = und.diff().ewm(span=slow_span).std().shift(1)
+    vps_fast = und.diff().ewm(span=fast_span).std().shift(1)
+    vol_price_term = vps_slow * 0.30 + vps_fast * 0.70
+
+    # It can be inf when the first n-differences are same.
+    _z = vol_price_term[vol_price_term == 0.00]
+    if len(_z) > 0:
+        print(f"Removing {len(_z)} instances of zero price diff vol")
+        print("\t", *list(_z.index), sep="\n\t")
+        vol_price_term.replace(0.00, np.nan, inplace=True)
+
+    vol_exposure_terms = vol_price_term * ticker.dollar_equivalent
+    vol_scalar = unit_cash_volatility_target / vol_exposure_terms
+
+    return pd.DataFrame(
+        {
+            "unit_vol_exp_term": vol_exposure_terms,
+            "vol_scalar": vol_scalar,
+        },
+        index=vol_scalar.index,
+    )
+
+
+# def volatility_scalar(
+#     price_df: pd.DataFrame,
+#     return_callable,
+#     ticker,
+#     unit_cash_volatility_target,
+#     span=None,
+# ):
+
+#     adj = price_df.adjusted.squeeze()
+#     und = price_df.underlying.squeeze()
+#     _neg_values = {i: None for i in und[und.le(0)].values}
+#     print(f"forward filling {len(_neg_values)} negative values.")
+#     ffiled_neg_und = und.replace(_neg_values)
+
+#     # ! Refer to page 666 of AFTS
+#     # ! Author recommends same values for num and denom but we calculate
+#     # ! returns with adj in numberator and und in denominator
+#     # ! Thus our analogous would be std(price diff of adj) divided by
+#     # ! underlying (ffiled negative value with latest positive value)
+#     # ! ############################################################
+#     # !           BEHAVIOR OF THIS METHOD WITH PROLONGED
+#     # !       NEGATIVE UNDERLYING VALUE IS NOT ANALYZED YET
+#     # ! ############################################################
+
+#     unit_vol_perc = adj.diff().ewm(span=span).std() / ffiled_neg_und
+#     unit_vol_perc = unit_vol_perc.shift(1)
+#     block_val = adj * ticker.dollar_equivalent
+#     inst_c_vol = unit_vol_perc * block_val
+#     vs = unit_cash_volatility_target / inst_c_vol
+
+#     return pd.DataFrame(
+#         {
+#             "inst_curr_vol": inst_c_vol,
+#             "vol_scalar": vs,
+#         },
+#         index=vs.index,
+#     )
+
+# @jit(forceobj=True)
 # def volatility_scalar(
 #     price_df,
 #     return_callable,
@@ -11,81 +83,45 @@ from scipy.optimize import minimize
 #     unit_cash_volatility_target,
 #     span=None,
 # ):
+
 #     temp = pd.DataFrame()
-#     temp["unit_returns"] = return_callable(price_df)  # *100
-#     temp["unit_returns"] = temp["unit_returns"].fillna(0)
+#     temp["unit_returns"] = return_callable(price_df)
+#     # temp["unit_returns"] = temp["unit_returns"].fillna(0)
+#     temp["unit_returns"] = temp["unit_returns"]
+#     temp["unit_vol"] = temp["unit_returns"].ewm(span=span).std()
 
-#     _vol_fast = temp["unit_returns"].ewm(span=span).std()
-#     _vol_slow = temp["unit_returns"].ewm(halflife=span * 2).std()
+#     n = len(temp)
+#     underlying_price = price_df.underlying[ticker.symbol.lower()].values
+#     unit_vol = temp["unit_vol"].values
+#     equal_price_counter = np.zeros(n, dtype=int)
+#     vol_resume = span
 
-#     temp["unit_vol"] = pd.Series(
-#         np.where(
-#             _vol_fast < _vol_slow * 0.30,
-#             _vol_slow,
-#             _vol_fast,
-#         ),
-#         index=_vol_fast.index,
-#     )
-#     # temp["unit_vol"] = temp["unit_returns"].ewm(span = span).std()
+#     for i in range(1, n):
+#         if underlying_price[i] == underlying_price[i - 1]:
+#             equal_price_counter[i] = equal_price_counter[i - 1] + 1
+#         if equal_price_counter[i] >= span:
+#             copy_vol_idx = int(i - equal_price_counter[i])
+#             if copy_vol_idx >= 0:
+#                 unit_vol[i] = unit_vol[copy_vol_idx]
+#         if equal_price_counter[i] == 0 and equal_price_counter[i - 1] >= span:
+#             for j in range(vol_resume):
+#                 if i + j < n:
+#                     unit_vol[i + j] = unit_vol[i - 1]
 
-#     temp["block_value"] = (
-#         price_df.underlying[ticker.symbol.lower()] * ticker.currency_multiplier
-#     )
-#     temp["instrument_currency_vol"] = (
-#         temp["unit_vol"] * temp["block_value"]
-#     )
-#     temp["vol_scalar"] = (
-#         unit_cash_volatility_target / temp["instrument_currency_vol"]
-#     )
-#     temp["vol_scalar"] = temp["vol_scalar"].shift(1)
+#     for i in range(1, n):
+#         if unit_vol[i] == 0:
+#             unit_vol[i] = np.nan
 
-#     return temp[["vol_scalar"]].squeeze()
+#     temp["unit_vol"] = unit_vol
+#     temp["unit_vol"] = temp["unit_vol"].shift(1)
+#     temp["block_value"] = price_df.underlying[ticker.symbol.lower()]
+#     temp["block_value"] *= ticker.currency_multiplier
 
-
-@jit(forceobj=True)
-def volatility_scalar(
-    price_df,
-    return_callable,
-    ticker,
-    unit_cash_volatility_target,
-    span=None,
-):
-
-    temp = pd.DataFrame()
-    temp["unit_returns"] = return_callable(price_df)
-    temp["unit_returns"] = temp["unit_returns"].fillna(0)
-    temp["unit_vol"] = temp["unit_returns"].ewm(span=span).std()
-
-    n = len(temp)
-    underlying_price = price_df.underlying[ticker.symbol.lower()].values
-    unit_vol = temp["unit_vol"].values
-    equal_price_counter = np.zeros(n, dtype=int)
-    vol_resume = span
-
-    for i in range(1, n):
-        if underlying_price[i] == underlying_price[i - 1]:
-            equal_price_counter[i] = equal_price_counter[i - 1] + 1
-        if equal_price_counter[i] >= span:
-            copy_vol_idx = int(i - equal_price_counter[i])
-            if copy_vol_idx >= 0:
-                unit_vol[i] = unit_vol[copy_vol_idx]
-        if equal_price_counter[i] == 0 and equal_price_counter[i - 1] >= span:
-            for j in range(vol_resume):
-                if i + j < n:
-                    unit_vol[i + j] = unit_vol[i - 1]
-
-    for i in range(1, n):
-        if unit_vol[i] == 0:
-            unit_vol[i] = np.nan
-            
-    temp["unit_vol"] = unit_vol
-    temp["block_value"] = price_df.underlying[ticker.symbol.lower()]
-    temp["block_value"] *= ticker.currency_multiplier
-
-    temp["instrument_currency_vol"] = temp["unit_vol"] * temp["block_value"]
-    temp["vol_scalar"] = unit_cash_volatility_target / temp["instrument_currency_vol"]
-    temp["vol_scalar"] = temp["vol_scalar"].shift(1)
-    return temp[["vol_scalar"]].squeeze()
+#     temp["instrument_currency_vol"] = temp["unit_vol"] * temp["block_value"]
+#     temp["vol_scalar"] = unit_cash_volatility_target / temp["instrument_currency_vol"]
+#     # temp["vol_scalar"] = temp["vol_scalar"].shift(1)
+#     return temp
+#     # return temp[["vol_scalar"]].squeeze()
 
 
 def correlation(returns):

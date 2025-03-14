@@ -7,12 +7,8 @@ import pandas as pd
 from gscbt.utils import Dotdict
 
 import gscap
-
-# from gscap import plot
 from gscap.framework.forecast import Forecast
 from gscap.framework.instruments import Instrument
-
-# import matplotlib.pyplot as plt
 from gscap.framework.strategy.analyse import _metric_table, _strategy_plots
 from gscap.framework.strategy.calculations import buffer, calculate_idm
 from gscap.framework.subsystem import SubSystem
@@ -41,7 +37,6 @@ class Strategy:
         risk_weights=None,
         buffer_fraction: Optional[float] = None,
         name: Optional[str] = "strategy_xx",
-        # include_cost: bool = True,
     ):
         self.name = name
         self.contracts = contracts
@@ -65,9 +60,11 @@ class Strategy:
         self.idm: Optional[pd.Series] = None
 
         if self.interval == "5m":
-            gscap.VOL_LOOKBACK_SPAN = 12
+            gscap.VOL_SCLR_LBACK_SPAN_SLOW = 12 * 24
+            gscap.VOL_SCLR_LBACK_SPAN_FAST = 12 * 2
         elif self.interval == "1d":
-            gscap.VOL_LOOKBACK_SPAN = 5
+            gscap.VOL_SCLR_LBACK_SPAN_FAST = 22
+            gscap.VOL_SCLR_LBACK_SPAN_SLOW = gscap.DAYS_IN_YEAR
 
     def init(self):
 
@@ -128,10 +125,8 @@ class Strategy:
         self.instrument_weights = instrument_weight(self.indv_return_series)
 
     def _calculate_idm(self):
-        if len(self.fmapping) > 1:
-            self.idm = calculate_idm(self.indv_return_series, self.instrument_weights)
-        elif len(self.fmapping) == 1:
-            self.idm = pd.Series(1.0, index=self.instrument_weights.index)
+        self.idm = calculate_idm(self.indv_return_series, self.instrument_weights)
+        # self.idm /= 2
 
         self.idm.name = self.name
 
@@ -164,7 +159,7 @@ class Strategy:
         if self.name == other_strategy.name:
             _err = f"Conflicting Strategy names: {repr(self.name)} & {repr(other_strategy.name)}"
             raise RuntimeError(_err)
-        _strategy_plots(self, benchmark=other_strategy, show=show)
+        # _strategy_plots(self, benchmark=other_strategy, show=show)
         _metric_table(self, benchmark=other_strategy)
 
     def _process_fmapping(self):
@@ -215,7 +210,7 @@ class Strategy:
         if isinstance(self.buffer_fraction, bool):
             _str = (
                 f"Invalid type for {type(self.buffer_fraction)=}; ",
-                f"Can only be `None` or `float`",
+                "Can only be `None` or `float`",
             )
             raise ValueError(_str)
 

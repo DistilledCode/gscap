@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+import pandas as pd
 from prettytable import PrettyTable
 
 import gscap
@@ -28,61 +29,72 @@ def _strategy_plots(main_strat: Strategy, benchmark: Strategy = None, show=True)
 
 def stats(strat: Strategy):
 
-    daily_rtr = strat.aggr_return_series.resample("D").sum()
-    daily_rtr = daily_rtr[~daily_rtr.eq(0.0)]
-    monthly_rtr = strat.aggr_return_series.resample("ME").sum()
-    monthly_rtr = monthly_rtr[~monthly_rtr.eq(0.0)]
-    yearly_rtr = strat.aggr_return_series.resample("YE").sum()
-    yearly_rtr = yearly_rtr[~yearly_rtr.eq(0.0)]
+    gross_returns = strat.aggr_return_series + strat.aggr_cost_return_series
+    net_returns = strat.aggr_return_series
 
-    annualized_daily_rtr = daily_rtr.mean() * gscap.DAYS_IN_YEAR
-    annualized_daily_std = daily_rtr.std() * np.sqrt(gscap.DAYS_IN_YEAR)
-    daily_sharpe = annualized_daily_rtr / annualized_daily_std
+    gross_d_rtr = gross_returns.resample("D").sum(min_count=1).dropna()
+    # gross_d_rtr = _remove_zeroes(gross_d_rtr)
 
-    annualized_monthly_rtr = monthly_rtr.mean() * 12
-    annualized_monthly_std = monthly_rtr.std() * np.sqrt(12)
-    monthly_sharpe = annualized_monthly_rtr / annualized_monthly_std
+    net_d_rtr = net_returns.resample("D").sum(min_count=1).dropna()
+    # net_d_rtr = _remove_zeroes(net_d_rtr)
 
-    dd = drawdown_series(daily_rtr, cumulative=True)
+    gross_m_rtr = gross_returns.resample("ME").sum(min_count=1).dropna()
+    # gross_m_rtr = _remove_zeroes(gross_m_rtr)
+
+    net_m_rtr = net_returns.resample("ME").sum(min_count=1).dropna()
+    # net_m_rtr = _remove_zeroes(net_m_rtr)
+
+    net_y_rtr = net_returns.resample("YE").sum(min_count=1).dropna()
+    # net_y_rtr = _remove_zeroes(net_y_rtr)
+
+    annualized_net_daily_rtr = net_d_rtr.mean() * gscap.DAYS_IN_YEAR
+    annualized_gross_daily_std = gross_d_rtr.std() * np.sqrt(gscap.DAYS_IN_YEAR)
+    daily_sharpe = annualized_net_daily_rtr / annualized_gross_daily_std
+
+    annualized_net_monthly_rtr = net_m_rtr.mean() * 12
+    annualized_gross_monthly_std = gross_m_rtr.std() * np.sqrt(12)
+    monthly_sharpe = annualized_net_monthly_rtr / annualized_gross_monthly_std
+
+    dd = drawdown_series(net_d_rtr, cumulative=True)
     max_dd = dd.min() * 100
     mean_dd = dd.mean() * 100
-    tratios_daily = tail_ratios(daily_rtr)
-    tratios_monthly = tail_ratios(monthly_rtr)
-    daily_skew = daily_rtr.skew()
-    monthly_skew = monthly_rtr.skew()
-    expected_daily_rtr = daily_rtr.mean() * 100
-    expected_monthly_rtr = monthly_rtr.mean() * 100
-    expected_yearly_rtr = yearly_rtr.mean() * 100
-    _1p_d, _5p_d = daily_rtr.quantile([0.01, 0.05])
-    _1p_m, _5p_m = monthly_rtr.quantile([0.01, 0.05])
+    tratios_daily = tail_ratios(net_d_rtr)
+    tratios_monthly = tail_ratios(net_m_rtr)
+    daily_skew = net_d_rtr.skew()
+    monthly_skew = net_m_rtr.skew()
+    expected_daily_rtr = net_d_rtr.mean() * 100
+    expected_monthly_rtr = net_m_rtr.mean() * 100
+    expected_yearly_rtr = net_y_rtr.mean() * 100
+    _1p_d, _5p_d = net_d_rtr.quantile([0.01, 0.05])
+    _1p_m, _5p_m = net_m_rtr.quantile([0.01, 0.05])
     daily_1p_var = _1p_d * 100
     daily_5p_var = _5p_d * 100
     monthly_1p_var = _1p_m * 100
     monthly_5p_var = _5p_m * 100
-    daily_1p_cvar = daily_rtr[daily_rtr <= _1p_d].mean() * 100
-    daily_5p_cvar = daily_rtr[daily_rtr <= _5p_d].mean() * 100
-    monthly_1p_cvar = monthly_rtr[monthly_rtr <= _1p_m].mean() * 100
-    monthly_5p_cvar = monthly_rtr[monthly_rtr <= _5p_m].mean() * 100
-    best_day = daily_rtr.max() * 100
-    best_month = monthly_rtr.max() * 100
-    best_year = yearly_rtr.max() * 100
-    worst_day = daily_rtr.min() * 100
-    worst_month = monthly_rtr.min() * 100
-    worst_year = yearly_rtr.min() * 100
-    win_days = daily_rtr[daily_rtr > 0].count() / len(daily_rtr) * 100
-    win_months = monthly_rtr[monthly_rtr > 0].count() / len(monthly_rtr) * 100
-    win_years = yearly_rtr[yearly_rtr > 0].count() / len(yearly_rtr) * 100
+    daily_1p_cvar = net_d_rtr[net_d_rtr <= _1p_d].mean() * 100
+    daily_5p_cvar = net_d_rtr[net_d_rtr <= _5p_d].mean() * 100
+    monthly_1p_cvar = net_m_rtr[net_m_rtr <= _1p_m].mean() * 100
+    monthly_5p_cvar = net_m_rtr[net_m_rtr <= _5p_m].mean() * 100
+    best_day = net_d_rtr.max() * 100
+    best_month = net_m_rtr.max() * 100
+    best_year = net_y_rtr.max() * 100
+    worst_day = net_d_rtr.min() * 100
+    worst_month = net_m_rtr.min() * 100
+    worst_year = net_y_rtr.min() * 100
+    win_days = net_d_rtr[net_d_rtr > 0].count() / len(net_d_rtr) * 100
+    win_months = net_m_rtr[net_m_rtr > 0].count() / len(net_m_rtr) * 100
+    win_years = net_y_rtr[net_y_rtr > 0].count() / len(net_y_rtr) * 100
 
     return {
         "top00": {
-            "Annualized Daily Return": annualized_daily_rtr * 100,
-            "Annualized Daily Volatility": annualized_daily_std * 100,
-            "Annualized Daily SR": daily_sharpe,
+            "Annualized Net Daily Return": annualized_net_daily_rtr * 100,
+            "Annualized Gross Daily Volatility": annualized_gross_daily_std * 100,
+            "Annualized Daily SR*": daily_sharpe,
         },
         "top01": {
-            "Annualized Monthly Return": annualized_monthly_rtr * 100,
-            "Annualized Monthly Volatility": annualized_monthly_std * 100,
-            "Annualized Monthly SR": monthly_sharpe,
+            "Annualized Net Monthly Return": annualized_net_monthly_rtr * 100,
+            "Annualized Gross Monthly Volatility": annualized_gross_monthly_std * 100,
+            "Annualized Monthly SR*": monthly_sharpe,
         },
         "risk": {
             "Max Drawdown": max_dd,
@@ -131,8 +143,8 @@ def stats(strat: Strategy):
     }
 
 
-#! https://posit-dev.github.io/great-tables/get-started/
-#! https://github.com/astanin/python-tabulate
+# ! https://posit-dev.github.io/great-tables/get-started/
+# ! https://github.com/astanin/python-tabulate
 
 
 def _metric_table(main_strat: Strategy, benchmark: Strategy = None):

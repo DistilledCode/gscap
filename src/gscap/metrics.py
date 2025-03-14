@@ -1,92 +1,35 @@
-from typing import Literal
-
 import numpy as np
 import pandas as pd
+
+import gscap
 
 _NORMAL_DIVIDER = 5.854340606494375
 _1_DEV = 0.682689492137086
 _3_DEV = 0.997300203936740
 
 
-def equi_vol(
-    return_series: pd.Series,
-    rolling_window=22,
-    min_periods=None,
-    annualize=True,
-    periods_per_year=252,
-) -> pd.DataFrame:
-    """
-    Returns equi-weghted volatility for given rolling window.
-    Assumes input to be daily data
-    Args:
-        return_series (pd.Series): return series in fraction
-        rolling_window (int, 22): Window for equally-weighted averaging.
-        annualized (bool, True): Whether to annualize the volatility.
-
-    Returns:
-        pd.DataFrame
-    """
-    _rw = rolling_window
-    _mp = _rw if min_periods is None else min_periods
-    _vol = return_series.rolling(_rw, min_periods=_mp).std()
-    if annualize:
-        _vol *= np.sqrt(periods_per_year)
-    return _vol
-
-
 def ewma_vol(
     return_series: pd.Series,
-    halflife=11,
-    min_periods=None,
+    span=22,
     annualize=True,
-    periods_per_year=252,
 ) -> pd.DataFrame:
-    """
-    Returns exponentially-weghted volatility for given half-life.
-    Assumes input to be daily data
-    Args:
-        return_series (pd.Series): return series in fraction
-        half_life (int, 11): Half-life for weighing.
-        annualized (bool, True): Whether to annualize the volatility.
 
-    Returns:
-        pd.DataFrame
-    """
-    _hl = halflife
-    _mp = _hl * 2 if min_periods is None else min_periods
-    _vol = return_series.ewm(halflife=_hl, min_periods=_mp).std()
+    span = span
+    _vol = return_series.ewm(span=span, min_periods=span // 2).std()
     if annualize:
-        _vol *= np.sqrt(periods_per_year)
+        _vol *= np.sqrt(gscap.DAYS_IN_YEAR)
     return _vol
-
-
-def sharpe(return_series: pd.Series, annualize=True, period_per_year=252):
-    sharpe = return_series.mean() / return_series.std()
-    return sharpe * np.sqrt(period_per_year) if annualize else sharpe
 
 
 def rolling_sharpe(
     return_series: pd.Series,
-    periods=22 * 6,
-    weights: Literal["equi", "ewma"] = "equi",
+    span=22 * 6,
     annualize=True,
-    periods_per_year=252,
 ):
-    if weights == "equi":
-        _rw = periods
-        _mp = _rw
-        _wseries = return_series.rolling(window=_rw, min_periods=_mp)
-
-    elif weights == "ewma":
-        _hl = periods // 2
-        _mp = _hl * 2
-        _wseries = return_series.ewm(halflife=_hl, min_periods=_mp)
-
+    _wseries = return_series.ewm(span=span, min_periods=span // 2)
     _rs = _wseries.mean() / _wseries.std()
-
     if annualize:
-        _rs *= np.sqrt(periods_per_year)
-
+        _rs *= np.sqrt(gscap.DAYS_IN_YEAR)
     return _rs
 
 
