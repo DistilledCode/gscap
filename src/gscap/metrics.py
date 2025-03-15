@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
-from gscap.framework.utils import interval_of_time_series
+
 import gscap
+from gscap.framework.utils import interval_of_time_series
 
 _NORMAL_DIVIDER = 5.854340606494375
 _1_DEV = 0.682689492137086

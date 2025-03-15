@@ -6,7 +6,9 @@ import gscap
 from gscap.framework.forecast import Forecast
 from gscap.framework.instruments import Instrument
 from gscap.framework.subsystem.calculations import prs_with_cost
-from gscap.framework.utils import Cost, analyse_cost, get_th_series
+from gscap.framework.utils import Cost, get_th_series
+
+# from gscap.framework.strategy.analyse import analyse_cost
 
 
 class SubSystem:
@@ -114,10 +116,3 @@ class SubSystem:
         self.cost.total_currency = pd.Series(0.0, index=self.position.index)
         self.cost.risk_adj_per_lot = pd.Series(0.0, index=self.position.index)
         self.cost.return_series = pd.Series(0.0, index=self.position.index)
-
-    def analyse_cost(self, show=True):
-        analyse_cost(
-            return_series=self.return_series,
-            cost_return_series=self.cost.return_series,
-            show=show,
-        )

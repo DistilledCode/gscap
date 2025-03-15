@@ -342,11 +342,11 @@ def plot_timeseries(
 
     if fill:
         if isinstance(returns, _pd.Series):
-            ax.fill_between(returns.index, 0, returns, color=colors[1], alpha=0.25)
+            ax.fill_between(returns.index, 0, returns, color=colors[1], alpha=0.125)
         elif isinstance(returns, _pd.DataFrame):
             for i, col in enumerate(returns.columns):
                 ax.fill_between(
-                    returns[col].index, 0, returns[col], color=colors[i + 1], alpha=0.25
+                    returns[col].index, 0, returns[col], color=colors[i + 1], alpha=0.125
                 )
 
     # rotate and align the tick labels so they look better
@@ -373,13 +373,19 @@ def plot_timeseries(
 
     if percent:
         ax.yaxis.set_major_formatter(_FuncFormatter(format_pct_axis))
-        # ax.yaxis.set_major_formatter(_plt.FuncFormatter(
-        #     lambda x, loc: "{:,}%".format(int(x*100))))
+    # !!QSC0!!
+    else:
+        ax.yaxis.set_major_formatter(_FuncFormatter(format_pct_axis_dollar))
+    # !!QSC1!!
 
     ax.set_xlabel("")
     if ylabel:
         ax.set_ylabel(
-            ylabel, fontname=fontname, fontweight="bold", fontsize=12, color="black"
+            ylabel,
+            fontname=fontname,
+            fontweight="bold",
+            fontsize=12,
+            color="black",
         )
     ax.yaxis.set_label_coords(-0.1, 0.5)
 
@@ -1229,17 +1235,36 @@ def format_cur_axis(x, _):
 
 def format_pct_axis(x, _):
     x *= 100  # lambda x, loc: "{:,}%".format(int(x * 100))
-    if x >= 1e12:
+    if x >= 1e12 or x <= -1e12:
         res = "%1.1fT%%" % (x * 1e-12)
         return res.replace(".0T%", "T%")
-    if x >= 1e9:
+    if x >= 1e9 or x <= -1e9:
         res = "%1.1fB%%" % (x * 1e-9)
         return res.replace(".0B%", "B%")
-    if x >= 1e6:
+    if x >= 1e6 or x <= -1e6:
         res = "%1.1fM%%" % (x * 1e-6)
         return res.replace(".0M%", "M%")
-    if x >= 1e3:
+    if x >= 1e3 or x <= -1e3:
         res = "%1.1fK%%" % (x * 1e-3)
         return res.replace(".0K%", "K%")
     res = "%1.0f%%" % x
     return res.replace(".0%", "%")
+
+
+# !!QSC0!!
+def format_pct_axis_dollar(x, _):
+    if x >= 1e12 or x <= -1e12:
+        res = "%1.1fT" % (x * 1e-12)
+        return res.replace(".0T", "T")
+    if x >= 1e9 or x <= -1e9:
+        res = "%1.1fB" % (x * 1e-9)
+        return res.replace(".0B", "B")
+    if x >= 1e6 or x <= -1e6:
+        res = "%1.1fM" % (x * 1e-6)
+        return res.replace(".0M", "M")
+    if x >= 1e3 or x <= -1e3:
+        res = "%1.1fK" % (x * 1e-3)
+        return res.replace(".0K", "K")
+    res = "%1.0f" % x
+    return res.replace(".0", "")
+# !!QSC1!!

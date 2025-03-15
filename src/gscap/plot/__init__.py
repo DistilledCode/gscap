@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import quantstats._plotting.core as qsplot
 from matplotlib.ticker import FuncFormatter
+from quantstats._plotting.core import format_pct_axis_dollar
 from quantstats._plotting.wrappers import monthly_heatmap as _monthly_heatmap
 
 import gscap.metrics as metrics
@@ -70,9 +71,12 @@ def drawdown(
     if cumulative ^ compound is False:
         raise ValueError("Either of `compound` or `cumulative` must be True, not both")
     _ds = metrics.drawdown_series(return_series, compound, cumulative)
+    # Smoothing for visuals
+    _ds = _ds.ewm(span=22).mean()
     if benchmark is not None:
         _bds = metrics.drawdown_series(benchmark, compound, cumulative)
-
+        # Smoothing for visuals
+        _bds = _bds.ewm(span=22).mean()
     _type = "Compounding" if compound else "Cumulative"
 
     return qsplot.plot_timeseries(
@@ -84,7 +88,7 @@ def drawdown(
         hline=_ds.mean(),
         hlw=1.5,
         lw=LINE_WIDTH,
-        title=f"Drawdown Graph ({_type})",
+        title=f"Drawdown Graph [{_type}; Smooth Curve]",
         fontname="Fira Code",
         ylabel="Drawdown",
         hllabel="Average",
@@ -201,7 +205,7 @@ def eoy_returns(
     plt.xticks(rotation=45, ha="right")  # 'ha' is horizontal alignment
 
     def percentage_formatter(y, pos):
-        return f"{y*100:.00f}%"  # Format as percentage with no decimal places
+        return f"{y * 100:.00f}%"  # Format as percentage with no decimal places
 
     x.margins(x=0.10)  # Adds 5% padding on the x-axis
     x.yaxis.set_major_formatter(FuncFormatter(percentage_formatter))
@@ -222,11 +226,10 @@ def returns(
     cumulative=False,
     show=False,
     title="Returns",
+    starting_capital=None,
 ):
-    # return_series = _resample_series(return_series, "D")
     return_series = return_series.resample("D").sum(min_count=1).dropna()
     if benchmark is not None:
-        # benchmark = _resample_series(benchmark, "D")
         benchmark = benchmark.resample("D").sum(min_count=1).dropna()
     if cumulative and compound is True:
         raise ValueError("Both `compound` and `cumulative` cannot be True")
@@ -244,18 +247,30 @@ def returns(
         if benchmark is not None:
             benchmark = benchmark.cumsum()
 
+    if starting_capital is not None:
+        percent = False
+        return_series *= starting_capital
+        if benchmark is not None:
+            benchmark *= starting_capital
+        sc = format_pct_axis_dollar(starting_capital, "")
+        _title = f"{_title[:-1]} Returns); Starting Capital: {sc}"
+        ylabel = "Value"
+    else:
+        ylabel = title
+        percent = True
     return qsplot.plot_timeseries(
         return_series,
         benchmark,
         cumulative=False,
         compound=False,
         fill=False,
-        lw=LINE_WIDTH,
+        lw=1.5,
         title=_title,
         fontname="Fira Code",
-        ylabel=_title,
+        ylabel=ylabel,
         figsize=(10, 6),
         show=show,
+        percent=percent,
     )
 
 
@@ -323,7 +338,6 @@ def rolling_sharpe(
     ylabel = "Non-" if not annualize else ""
     ylabel += "Annualized Sharpe"
     title = f"Rolling Sharpe [EWMA; lookback={span}; Smooth Curve]"
-
 
     return qsplot.plot_rolling_stats(
         _rs,

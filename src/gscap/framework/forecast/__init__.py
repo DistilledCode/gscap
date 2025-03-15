@@ -80,9 +80,15 @@ class EWMACForecast(Forecast):
 
     def __repr__(self):
         return (
-            f"EWMACForecast({self.fast_window}, {self.slow_window}, "
+            f"EWMACForecast({self.fast_window:>03}, {self.slow_window:>03}, "
             f"{self.CLIP}, {self.ABS_AVG}, {self.vol_span})"
         )
+
+    def __lt__(self, other):
+        return self.fast_window < other.fast_window
+
+    def __gt__(self, other):
+        return self.fast_window > other.fast_window
 
 
 class VolTargetLongOnly(Forecast):

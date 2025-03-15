@@ -3,23 +3,30 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-# import pandas as pd
 from prettytable import PrettyTable
 
 import gscap
 from gscap import plot
-from gscap.metrics import drawdown_series, tail_ratios
 from gscap.framework.utils import interval_of_time_series
+from gscap.metrics import drawdown_series, tail_ratios
 
 if TYPE_CHECKING:
     from gscap.framework.strategy import Strategy
 
 
-def _strategy_plots(main_strat: Strategy, benchmark: Strategy = None, show=True):
+def strategy_plots(main_strat: Strategy, benchmark: Strategy = None, show=True):
     main_rs = main_strat.aggr_return_series
     bench_rs = benchmark.aggr_return_series if benchmark is not None else None
     plot.returns(main_rs, benchmark=bench_rs, cumulative=False, show=show)
     plot.returns(main_rs, benchmark=bench_rs, cumulative=True, show=show)
+    plot.returns(
+        main_rs,
+        benchmark=bench_rs,
+        cumulative=True,
+        show=show,
+        starting_capital=main_strat.capital,
+        title="Equity Curve",
+    )
     plot.return_histogram(main_rs, benchmark=bench_rs, show=show)
     plot.eoy_returns(main_rs, benchmark=bench_rs, show=show)
     plot.rolling_volatility(main_rs, benchmark=bench_rs, show=show)
@@ -156,7 +163,7 @@ def stats(strat: Strategy):
 # ! https://github.com/astanin/python-tabulate
 
 
-def _metric_table(main_strat: Strategy, benchmark: Strategy = None):
+def metric_table(main_strat: Strategy, benchmark: Strategy = None):
 
     main_stats = stats(main_strat)
     if benchmark is not None:
@@ -175,3 +182,51 @@ def _metric_table(main_strat: Strategy, benchmark: Strategy = None):
         table.add_divider()
     print(table)
     return table
+
+
+def cost_stats(strat: Strategy):
+    return_series = strat.aggr_return_series
+    cost_series = strat.aggr_cost_return_series
+
+    rtr_without_cost = return_series + cost_series
+    rtr_with_cost = return_series
+    cost_return_series = cost_series
+    rtr_without_cost.name = f"{strat.name} (without cost)"
+    rtr_with_cost.name = f"{strat.name} (with cost)"
+    cost_return_series.name = f"{strat.name} cost"
+    rtr_without_cost = rtr_without_cost.resample("D").sum(min_count=1).dropna()
+    rtr_with_cost = rtr_with_cost.resample("D").sum(min_count=1).dropna()
+    cost_return_series = cost_return_series.resample("D").sum(min_count=1).dropna()
+
+    return (rtr_without_cost, rtr_with_cost, cost_return_series)
+
+
+def analyse_cost(main_strat: Strategy, benchmark: Strategy = None, show=True):
+    ms_rtr_wi_c, ms_rtr_wo_c, ms_cost_rtr = cost_stats(main_strat)
+    if benchmark is not None:
+        _, _, os_cost_rtr = cost_stats(benchmark)
+    else:
+        os_cost_rtr = None
+    if benchmark is None:
+        plot.returns(
+            ms_rtr_wi_c,
+            ms_rtr_wo_c,
+            cumulative=True,
+            show=show,
+            title="Cost Effect On Returns",
+        )
+    plot.returns(
+        ms_cost_rtr,
+        os_cost_rtr,
+        cumulative=True,
+        show=show,
+        title=r"Cost (% of capital)",
+    )
+    plot.return_histogram(
+        ms_cost_rtr,
+        os_cost_rtr,
+        granular_returns=True,
+        show=show,
+        title=r"Cost (% of capital)",
+        bins=50,
+    )

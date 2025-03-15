@@ -4,9 +4,10 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+import gscap
+
 if TYPE_CHECKING:
     from gscap.framework import Instrument
-
 
 import numpy as np
 
@@ -53,7 +54,11 @@ def inv_sqrt_fn(ser: pd.Series, fw: np.array):
     return [np.nan if np.allclose(i, 0) else 1 / np.sqrt(fw @ i @ fw.T) for i in ser]
 
 
-def _get_fdm_calculate_fw(instrument: Instrument, resample="W", weights: str = "corr"):
+def _get_fdm_calculate_fw(
+    instrument: Instrument,
+    resample,
+    weights: str = "corr",
+):
 
     rho_fc = []
     _ts = []
@@ -82,7 +87,11 @@ def _get_fdm_calculate_fw(instrument: Instrument, resample="W", weights: str = "
     return instrument.fdm
 
 
-def combined_forecast(instrument: Instrument, weights="corr", fdm_resample="B"):
+def combined_forecast(
+    instrument: Instrument,
+    weights="corr",
+    fdm_resample=gscap.FDM_RESAMPLE,
+):
     if instrument.forecast is None:
         raise AttributeError(f"No forecast(s) found for {instrument}")
     if any([f.forecast_value is None for f in instrument.forecast]):

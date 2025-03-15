@@ -7,12 +7,13 @@ import pandas as pd
 from gscbt.utils import Dotdict
 
 import gscap
+import gscap.framework.strategy.analyse as analysis
 from gscap.framework.forecast import Forecast
 from gscap.framework.instruments import Instrument
-from gscap.framework.strategy.analyse import _metric_table, _strategy_plots
 from gscap.framework.strategy.calculations import buffer, calculate_idm
 from gscap.framework.subsystem import SubSystem
-from gscap.framework.utils import analyse_cost
+
+# from gscap.framework.utils import analyse_cost
 
 
 def instrument_weight(returns: pd.DataFrame, resample="YE", n_itr=100, frac=0.1):
@@ -152,8 +153,9 @@ class Strategy:
         self._calculate_ss_return_series()
 
     def analyse(self, show=True):
-        _strategy_plots(self, show=show)
-        _metric_table(self)
+        analysis.metric_table(self)
+        analysis.strategy_plots(self, show=show)
+        analysis.analyse_cost(self, show=show)
 
     def compare(self, other_strategy, show=True):
         if not isinstance(other_strategy, Strategy):
@@ -163,8 +165,9 @@ class Strategy:
             _err = f"Conflicting Strategy names: {repr(self.name)} & {repr(other_strategy.name)}"
             raise RuntimeError(_err)
 
-        _metric_table(self, benchmark=other_strategy)
-        _strategy_plots(self, benchmark=other_strategy, show=show)
+        analysis.metric_table(self, benchmark=other_strategy)
+        analysis.strategy_plots(self, benchmark=other_strategy, show=show)
+        analysis.analyse_cost(self, benchmark=other_strategy, show=show)
 
     def _process_fmapping(self):
 
@@ -217,10 +220,3 @@ class Strategy:
                 "Can only be `None` or `float`",
             )
             raise ValueError(_str)
-
-    def analyse_cost(self, show=True):
-        analyse_cost(
-            return_series=self.aggr_return_series,
-            cost_return_series=self.aggr_cost_return_series,
-            show=show,
-        )
