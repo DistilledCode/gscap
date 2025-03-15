@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
 from gscbt.framework import volatility_scalar
@@ -6,8 +8,6 @@ import gscap
 from gscap.framework.forecast import Forecast
 from gscap.framework.instruments import Instrument
 from gscap.framework.utils import get_th_series
-
-from dataclasses import dataclass
 
 
 @dataclass
@@ -59,7 +59,6 @@ class SubSystem:
         if self._volatility_scalar is None:
             self.vol_scl_log = volatility_scalar(
                 price_df=self.instrument.close_price(),
-                # return_callable=get_returns,
                 ticker=self.instrument.meta,
                 unit_cash_volatility_target=self.unit_cv_target,
                 slow_span=gscap.VOL_SCLR_LBACK_SPAN_SLOW,

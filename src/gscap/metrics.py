@@ -118,3 +118,13 @@ def turnover_series(
     delta_pos = positions_series.diff().abs()
     _tseries = delta_pos / abv_pos
     return _tseries * annualizing_factor
+
+
+def long_trades(position_df: pd.DataFrame):
+
+    total = np.sum((~position_df.diff().isna()).astype(int).values)
+    long = np.sum(position_df.diff().ge(0).astype(int).values)
+    zero = np.sum((position_df.diff().eq(0)).astype(int).values)
+    if total == 0:
+        return np.nan
+    return (long - zero) / (total - zero)

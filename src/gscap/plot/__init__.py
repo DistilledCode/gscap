@@ -1,5 +1,3 @@
-from typing import Literal
-
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -10,6 +8,7 @@ from quantstats._plotting.wrappers import monthly_heatmap as _monthly_heatmap
 
 import gscap.metrics as metrics
 from gscap import SRC_DIR
+from gscap.framework.utils import interval_of_time_series
 
 LINE_WIDTH = 1.25
 
@@ -147,6 +146,52 @@ def turnover(
         fontname="Fira Code",
         hllabel=f"Avg: {(_ts.mean() * 100):.2f}% (nr)",  # nr - non rolling
         ylabel="Annualized Turnover",
+        figsize=figsize,
+        show=show,
+    )
+
+
+def rolling_long_trades(
+    position_series: pd.Series,
+    benchmark: pd.Series = None,
+    figsize=(10, 6),
+    show=False,
+    name_tuple=("Blue", "Benchmark"),
+):
+    intv = interval_of_time_series(position_series)
+    anf = (252 * 24 * 3600) / intv
+
+    def get_rolling_tl(_df: pd.DataFrame):
+        _window = int(anf / 2)
+        _minp = int(anf / 4)
+        _tl = pd.Series(
+            [
+                metrics.long_trades(_position)
+                for _position in _df.rolling(_window, min_periods=_minp)
+            ],
+            index=_df.index,
+        )
+        _tl = _tl.resample("D").last().dropna()
+        return _tl, _tl.rolling(22, min_periods=22).mean().dropna()
+
+    _tl, _tlr = get_rolling_tl(position_series)
+    _tlr.name = name_tuple[0]
+    if benchmark is not None:
+        _, _btlr = get_rolling_tl(benchmark)
+        _btlr.name = name_tuple[-1]
+    else:
+        _btlr = None
+    return qsplot.plot_timeseries(
+        _tlr,
+        _btlr,
+        cumulative=False,
+        title="Long Trades [rolling 6 month; Smooth Curve]",
+        hline=_tl.mean(),
+        hlw=1.5,
+        lw=LINE_WIDTH,
+        fontname="Fira Code",
+        hllabel="Average",
+        ylabel="Percentage of Long Trades",
         figsize=figsize,
         show=show,
     )

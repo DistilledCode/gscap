@@ -6,7 +6,7 @@ from gscbt.utils import Dotdict
 from pandas import DataFrame, Series
 
 import gscap.pipe as pipe
-from gscap.framework import Forecast
+from gscap.framework.forecast import Forecast
 from gscap.framework.forecast.utils import combined_forecast
 
 

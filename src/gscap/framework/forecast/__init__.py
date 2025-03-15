@@ -9,7 +9,7 @@ import pandas as pd
 from pandas import DataFrame
 
 if TYPE_CHECKING:
-    from gscap.framework import Instrument
+    from gscap.framework.instruments import Instrument
 
 
 class Forecast(ABC):

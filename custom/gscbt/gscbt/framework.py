@@ -14,8 +14,8 @@ def volatility_scalar(
 
     und = price_df.underlying.squeeze()
 
-    vps_slow = und.diff().ewm(span=slow_span).std().shift(1)
-    vps_fast = und.diff().ewm(span=fast_span).std().shift(1)
+    vps_slow = und.diff().ewm(span=slow_span).std()
+    vps_fast = und.diff().ewm(span=fast_span).std()
     vol_price_term = vps_slow * 0.30 + vps_fast * 0.70
 
     # It can be inf when the first n-differences are same.
@@ -26,6 +26,7 @@ def volatility_scalar(
         vol_price_term.replace(0.00, np.nan, inplace=True)
 
     vol_exposure_terms = vol_price_term * ticker.dollar_equivalent
+    vol_exposure_terms = vol_exposure_terms.shift(1)
     vol_scalar = unit_cash_volatility_target / vol_exposure_terms
 
     return pd.DataFrame(

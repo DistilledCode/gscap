@@ -228,5 +228,5 @@ def analyse_cost(main_strat: Strategy, benchmark: Strategy = None, show=True):
         granular_returns=True,
         show=show,
         title=r"Cost (% of capital)",
-        bins=50,
+        bins=30,
     )
