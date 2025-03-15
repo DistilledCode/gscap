@@ -1,18 +1,6 @@
-from dataclasses import dataclass
-
 import pandas as pd
-from pandas import Series
 
 from gscap.framework.instruments import Instrument
-
-
-@dataclass
-class Cost:
-    commission_currency: Series = None
-    slippage_currency: Series = None
-    total_currency: Series = None
-    # risk_adj_per_lot: Series = None
-    return_series: Series = None
 
 
 def get_th_series(instrument: Instrument):
