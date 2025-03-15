@@ -31,9 +31,9 @@ def buffer(
     # Integrity check
     if integrity_check:
         if (buffer < lower).any():
-            raise AssertionError(f"buffer values below lower bound")
+            raise AssertionError("buffer values below lower bound")
         if (buffer > upper).any():
-            raise AssertionError(f"buffer values above upper bound")
+            raise AssertionError("buffer values above upper bound")
 
     # Return DataFrame if required
     if return_df:
@@ -145,7 +145,7 @@ def idm_optimized(returns, weights):
 
 def calculate_idm(indv_rtr_df, inst_wgt_df):
     if len(indv_rtr_df.columns) == 1:
-        return pd.Series(1.0, index=indv_rtr_df.index, name="idm")
+        return pd.Series(1.0, index=indv_rtr_df.index)
     assert all(indv_rtr_df.index == inst_wgt_df.index)
     _index = indv_rtr_df.resample(gscap.IDM_RESAMPLE).last().index
     _rs_rtr = indv_rtr_df.resample(gscap.IDM_RESAMPLE).last().values

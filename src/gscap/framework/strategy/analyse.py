@@ -3,12 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
+# import pandas as pd
 from prettytable import PrettyTable
 
 import gscap
 from gscap import plot
 from gscap.metrics import drawdown_series, tail_ratios
+from gscap.framework.utils import interval_of_time_series
 
 if TYPE_CHECKING:
     from gscap.framework.strategy import Strategy
@@ -32,20 +33,23 @@ def stats(strat: Strategy):
     gross_returns = strat.aggr_return_series + strat.aggr_cost_return_series
     net_returns = strat.aggr_return_series
 
-    gross_d_rtr = gross_returns.resample("D").sum(min_count=1).dropna()
-    # gross_d_rtr = _remove_zeroes(gross_d_rtr)
+    # gross_intv_rtr = gross_returns.mean()
+    # net_intv_rtr = gross_returns.mean()
 
+    intv_in_sec = interval_of_time_series(gross_returns)
+    intv_ann_factor = gscap.DAYS_IN_YEAR * 24 * 3600 / intv_in_sec
+
+    gross_d_rtr = gross_returns.resample("D").sum(min_count=1).dropna()
     net_d_rtr = net_returns.resample("D").sum(min_count=1).dropna()
-    # net_d_rtr = _remove_zeroes(net_d_rtr)
 
     gross_m_rtr = gross_returns.resample("ME").sum(min_count=1).dropna()
-    # gross_m_rtr = _remove_zeroes(gross_m_rtr)
-
     net_m_rtr = net_returns.resample("ME").sum(min_count=1).dropna()
-    # net_m_rtr = _remove_zeroes(net_m_rtr)
 
     net_y_rtr = net_returns.resample("YE").sum(min_count=1).dropna()
-    # net_y_rtr = _remove_zeroes(net_y_rtr)
+
+    annualized_net_intv_rtr = net_returns.mean() * intv_ann_factor
+    annualized_gross_intv_std = gross_returns.std() * np.sqrt(intv_ann_factor)
+    intv_sharpe = annualized_net_intv_rtr / annualized_gross_intv_std
 
     annualized_net_daily_rtr = net_d_rtr.mean() * gscap.DAYS_IN_YEAR
     annualized_gross_daily_std = gross_d_rtr.std() * np.sqrt(gscap.DAYS_IN_YEAR)
@@ -87,11 +91,16 @@ def stats(strat: Strategy):
 
     return {
         "top00": {
+            "Annualized Net Interval Return": annualized_net_intv_rtr * 100,
+            "Annualized Gross Interval Volatility": annualized_gross_intv_std * 100,
+            "Annualized Interval SR*": intv_sharpe,
+        },
+        "top01": {
             "Annualized Net Daily Return": annualized_net_daily_rtr * 100,
             "Annualized Gross Daily Volatility": annualized_gross_daily_std * 100,
             "Annualized Daily SR*": daily_sharpe,
         },
-        "top01": {
+        "top02": {
             "Annualized Net Monthly Return": annualized_net_monthly_rtr * 100,
             "Annualized Gross Monthly Volatility": annualized_gross_monthly_std * 100,
             "Annualized Monthly SR*": monthly_sharpe,
@@ -130,7 +139,7 @@ def stats(strat: Strategy):
             "Best Month Return": best_month,
             "Best Year Return": best_year,
         },
-        "best": {
+        "worse": {
             "Worst Day Return": worst_day,
             "Worst Month Return": worst_month,
             "Worst Year Return": worst_year,
@@ -165,3 +174,4 @@ def _metric_table(main_strat: Strategy, benchmark: Strategy = None):
         table.add_rows([i, *list(j)] for i, j in _to_add.items())
         table.add_divider()
     print(table)
+    return table

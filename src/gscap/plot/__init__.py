@@ -3,7 +3,6 @@ from typing import Literal
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import pandas as pd
-import plotly.graph_objects as go
 import quantstats._plotting.core as qsplot
 from matplotlib.ticker import FuncFormatter
 from quantstats._plotting.wrappers import monthly_heatmap as _monthly_heatmap
@@ -25,11 +24,6 @@ def set_style():
 
 
 set_style()
-
-
-def _resample_series(series: pd.Series, resample):
-    _s = series.resample(resample).sum()
-    return _s[~_s.eq(0.0)]
 
 
 def monthly_heatmap(
@@ -67,9 +61,11 @@ def drawdown(
     fill=True,
     show=False,
 ):
-    return_series = _resample_series(return_series, "D")
+    # return_series = _resample_series(return_series, "D")
+    return_series = return_series.resample("D").sum(min_count=1).dropna()
     if benchmark is not None:
-        benchmark = _resample_series(benchmark, "D")
+        # benchmark = _resample_series(benchmark, "D")
+        benchmark = benchmark.resample("D").sum(min_count=1).dropna()
 
     if cumulative ^ compound is False:
         raise ValueError("Either of `compound` or `cumulative` must be True, not both")
@@ -123,35 +119,32 @@ def position(position_series: pd.Series, benchmark: pd.Series = None, fill=False
 def turnover(
     position_series: pd.Series,
     benchmark: pd.Series = None,
-    fill=False,
-    period=22 * 6,
+    figsize=(10, 6),
+    show=False,
 ):
     _ts = metrics.turnover_series(position_series)
-    _ts = _ts.rolling(period, min_periods=period).mean()
-    _ts.dropna(inplace=True)
-
+    _ts = _ts.resample("D").last().dropna() / 100
+    _tsr = _ts.rolling(22 * 6, min_periods=22 * 3).mean().dropna()
     if benchmark is not None:
         _bts = metrics.turnover_series(benchmark)
-        _bts = _bts.rolling(period, min_periods=period).mean()
-        _bts.dropna(inplace=True)
+        _bts = _bts.resample("D").last().dropna() / 100
+        _btsr = _bts.rolling(22 * 6, min_periods=22 * 3).mean().dropna()
     else:
-        _bts = None
+        _btsr = None
     return qsplot.plot_timeseries(
-        _ts,
-        _bts,
+        _tsr,
+        _btsr,
         cumulative=False,
-        compound=False,
-        fill=fill,
+        title="Annualized Daily Turnover (rolling 6 month)",
+        # fill=True,
         hline=_ts.mean(),
-        hllabel="Average Turnover",
         hlw=1.5,
         lw=LINE_WIDTH,
-        title=f"Turnover; rolling {period=}",
         fontname="Fira Code",
+        hllabel=f"Avg: {(_ts.mean() * 100):.2f}% (nr)",  # nr - non rolling
         ylabel="Annualized Turnover",
-        figsize=(10, 6),
-        show=False,
-        percent=False,
+        figsize=figsize,
+        show=show,
     )
 
 
@@ -230,9 +223,11 @@ def returns(
     show=False,
     title="Returns",
 ):
-    return_series = _resample_series(return_series, "D")
+    # return_series = _resample_series(return_series, "D")
+    return_series = return_series.resample("D").sum(min_count=1).dropna()
     if benchmark is not None:
-        benchmark = _resample_series(benchmark, "D")
+        # benchmark = _resample_series(benchmark, "D")
+        benchmark = benchmark.resample("D").sum(min_count=1).dropna()
     if cumulative and compound is True:
         raise ValueError("Both `compound` and `cumulative` cannot be True")
 
@@ -267,54 +262,31 @@ def returns(
 def rolling_volatility(
     return_series: pd.Series,
     benchmark: pd.Series = None,
-    periods=10,
-    weights: Literal["equi", "ewma"] = "ewma",
+    span=22 * 3,
     annualize=True,
-    periods_per_year=252,
     show=False,
 ):
-    return_series = _resample_series(return_series, "D")
-    if benchmark is not None:
-        benchmark = _resample_series(benchmark, "D")
+    return_series = return_series.resample("D").sum(min_count=1).dropna()
+    _vol = metrics.ewma_vol(return_series, span=span, annualize=annualize)
+    # Smoothing for visuals
+    _vol = _vol.ewm(span=22).mean()
 
-    if weights == "ewma":
-        halflife = periods // 2
-        title = f"Rolling Volatility ({weights=}; {halflife=})"
-        _vol = metrics.ewma_vol(
-            return_series,
-            halflife=halflife,
-            annualize=annualize,
-            periods_per_year=periods_per_year,
-        )
-        if benchmark is not None:
-            _bvol = metrics.ewma_vol(
-                benchmark,
-                halflife=halflife,
-                annualize=annualize,
-                periods_per_year=periods_per_year,
-            )
-    elif weights == "equi":
-        title = f"Rolling Volatility ({weights=}; {periods=})"
-        _vol = metrics.equi_vol(
-            return_series,
-            rolling_window=periods,
-            annualize=annualize,
-            periods_per_year=periods_per_year,
-        )
-        if benchmark is not None:
-            _bvol = metrics.equi_vol(
-                benchmark,
-                rolling_window=periods,
-                annualize=annualize,
-                periods_per_year=periods_per_year,
-            )
+    if benchmark is not None:
+        benchmark = benchmark.resample("D").sum(min_count=1).dropna()
+        _bvol = metrics.ewma_vol(benchmark, span=span, annualize=annualize)
+        # Smoothing for visuals
+        _bvol = _bvol.ewm(span=22).mean()
+
     else:
-        raise ValueError("Wrong weighing scheme dedi!! Either `equi` or `ewma`")
+        _bvol = None
+
+    title = f"Rolling Volatility [EWMA; lookback={span}; Smooth Curve]"
     ylabel = "Non-" if not annualize else ""
     ylabel += "Annualized Volatility"
+
     return qsplot.plot_rolling_stats(
         _vol,
-        None if benchmark is None else _bvol,
+        _bvol,
         hline=_vol.mean(),
         hlw=1.5,
         title=title,
@@ -331,56 +303,32 @@ def rolling_volatility(
 def rolling_sharpe(
     return_series: pd.Series,
     benchmark: pd.Series = None,
-    periods=22 * 6,
-    weights: Literal["equi", "ewma"] = "equi",
+    span=22 * 3,
     annualize=True,
-    periods_per_year=252,
     show=False,
 ):
-    return_series = _resample_series(return_series, "D")
+    return_series = return_series.resample("D").sum(min_count=1).dropna()
     if benchmark is not None:
-        benchmark = _resample_series(benchmark, "D")
-    if weights == "equi":
-        title = f"Rolling Sharpe ({weights=}; {periods=})"
-        _rs = metrics.rolling_sharpe(
-            return_series,
-            periods=periods,
-            annualize=annualize,
-            periods_per_year=periods_per_year,
-        )
-        if benchmark is not None:
-            _brs = metrics.rolling_sharpe(
-                benchmark,
-                periods=periods,
-                annualize=annualize,
-                periods_per_year=periods_per_year,
-            )
+        benchmark = benchmark.resample("D").sum(min_count=1).dropna()
+        _brs = metrics.rolling_sharpe(benchmark, span=span, annualize=annualize)
+        # Smoothing for visuals
+        _brs = _brs.ewm(span=22).mean()
+    else:
+        _brs = None
 
-    elif weights == "ewma":
-        _hl = periods // 2
-        title = f"Rolling Sharpe ({weights=}; halflife={_hl})"
-        _rs = metrics.rolling_sharpe(
-            return_series,
-            weights="ewma",
-            periods=periods,
-            annualize=annualize,
-            periods_per_year=periods_per_year,
-        )
-        if benchmark is not None:
-            _brs = metrics.rolling_sharpe(
-                return_series,
-                weights="ewma",
-                periods=periods,
-                annualize=annualize,
-                periods_per_year=periods_per_year,
-            )
+    _rs = metrics.rolling_sharpe(return_series, span=span, annualize=annualize)
+    # Smoothing for visuals
+    _rs = _rs.ewm(span=22).mean()
 
     ylabel = "Non-" if not annualize else ""
     ylabel += "Annualized Sharpe"
+    title = f"Rolling Sharpe [EWMA; lookback={span}; Smooth Curve]"
+
+
     return qsplot.plot_rolling_stats(
         _rs,
-        None if benchmark is None else _brs,
-        hline=_rs.mean(),
+        _brs,
+        # hline=_rs.mean(),
         hlw=1.5,
         title=title,
         ylabel=ylabel,

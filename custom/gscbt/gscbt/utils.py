@@ -22,7 +22,7 @@ LOCAL_DATA_PATH = PACKAGE_DIR_PATH / "data"
 API = {
     "GET_USD_CONVERSION" :  f"http://{SERVER_IP_PORT}/api/v1/data/dollarequivalent",
     "DOWNLOAD_MARKET_DATA" : f"http://{SERVER_IP_PORT}/api/v1/data/download",
-    "GET_IQFEED_DATA" : f"http://{SERVER_IP_PORT}/api/v1/data/iqfeed", 
+    "GET_IQFEED_DATA" : f"http://{SERVER_IP_PORT}/api/v2/data/iqfeed", 
     "GET_MARKET_DATA" : f"http://{SERVER_IP_PORT}/api/v1/data/ohlcv",
     "QUANT_APIS" : f"http://{SERVER_IP_PORT}/api/v1/quant/data/ohlcv",      # for 5 min data
 } 
@@ -53,7 +53,8 @@ def get_dollar_equivalent(ticker) -> float:
 def download_file(url, filename_with_path, params=None, allow_redirect=False):
     try:
         # Send a GET request with stream=True to download the file in chunks
-        response = requests.get(url, params=params, stream=True, timeout=30, allow_redirects=allow_redirect)  # Timeout set to 30 seconds
+        print(url)
+        response = requests.get(url, params=params, stream=True, timeout=600, allow_redirects=allow_redirect)  # Timeout set to 30 seconds
 
         # Check if the request was successful
         response.raise_for_status()  # Raises an HTTPError for bad responses (4xx or 5xx)

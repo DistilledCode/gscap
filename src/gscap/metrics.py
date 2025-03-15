@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-
+from gscap.framework.utils import interval_of_time_series
 import gscap
 
 _NORMAL_DIVIDER = 5.854340606494375
@@ -106,8 +106,14 @@ def tail_ratios(return_series: pd.Series):
     }
 
 
-def turnover_series(position_series: pd.Series) -> pd.Series:
-    # _annualize_factor = 1 if annualize is False else 252
-    _tseries = position_series.diff().abs() / position_series.shift(1)
-    # return _tseries * _annualize_factor
-    return _tseries
+def turnover_series(
+    positions_series: pd.Series,
+    hrs_in_day: int | pd.Series = 24,
+) -> pd.Series:
+
+    intv = interval_of_time_series(positions_series)
+    annualizing_factor = (252 * hrs_in_day * 3600) / intv
+    abv_pos = positions_series.abs().expanding().mean().shift(1)
+    delta_pos = positions_series.diff().abs()
+    _tseries = delta_pos / abv_pos
+    return _tseries * annualizing_factor

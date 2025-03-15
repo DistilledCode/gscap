@@ -14,7 +14,7 @@ class Instrument:
     def __init__(
         self,
         meta: Dotdict,
-        interval: Literal["1d", "5m"] = "1d",
+        interval: Literal["5m", "1h", "1d"] = "1d",
         period: Literal["ins", "oos", "fbd"] = "ins",
     ):
         self.meta = meta
@@ -85,7 +85,7 @@ class Instrument:
 
     def open_price(
         self,
-        interval: Literal["1d", "5m"] = None,
+        interval: Literal["5m", "1h", "1d"] = None,
         period: Literal["ins", "oos", "fbd"] = None,
     ) -> DataFrame:
         return self._fetch_cached_data(
@@ -98,7 +98,7 @@ class Instrument:
 
     def high_price(
         self,
-        interval: Literal["1d", "5m"] = None,
+        interval: Literal["5m", "1h", "1d"] = None,
         period: Literal["ins", "oos", "fbd"] = None,
     ) -> DataFrame:
         return self._fetch_cached_data(
@@ -111,7 +111,7 @@ class Instrument:
 
     def low_price(
         self,
-        interval: Literal["1d", "5m"] = None,
+        interval: Literal["5m", "1h", "1d"] = None,
         period: Literal["ins", "oos", "fbd"] = None,
     ) -> DataFrame:
         return self._fetch_cached_data(
@@ -124,7 +124,7 @@ class Instrument:
 
     def close_price(
         self,
-        interval: Literal["1d", "5m"] = None,
+        interval: Literal["5m", "1h", "1d"] = None,
         period: Literal["ins", "oos", "fbd"] = None,
     ) -> DataFrame:
         return self._fetch_cached_data(
@@ -137,7 +137,7 @@ class Instrument:
 
     def volume(
         self,
-        interval: Literal["1d", "5m"] = None,
+        interval: Literal["5m", "1h", "1d"] = None,
         period: Literal["ins", "oos", "fbd"] = None,
     ) -> DataFrame:
         return self._fetch_cached_data(
@@ -150,7 +150,7 @@ class Instrument:
 
     def ohlcv(
         self,
-        interval: Literal["1d", "5m"] = None,
+        interval: Literal["5m", "1h", "1d"] = None,
         period: Literal["ins", "oos", "fbd"] = None,
     ) -> DataFrame:
         return self._fetch_cached_data(

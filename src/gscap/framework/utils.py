@@ -30,11 +30,6 @@ def get_th_series(instrument: Instrument):
     return series.reindex(instrument.close_price().index, method="nearest")
 
 
-def _resample_series(series: pd.Series, resample):
-    _s = series.resample(resample).sum()
-    return _s[~_s.eq(0.0)]
-
-
 def analyse_cost(return_series, cost_return_series, show=True):
     """
     Assuming that we'll always keep `include_cost=True`
@@ -47,9 +42,6 @@ def analyse_cost(return_series, cost_return_series, show=True):
     rtr_without_cost.name = f"{_name} (without cost)"
     rtr_with_cost.name = f"{_name} (with cost)"
     cost_return_series.name = f"{_name} cost"
-    # rtr_without_cost = _resample_series(rtr_without_cost, "D")
-    # rtr_with_cost = _resample_series(rtr_with_cost, "D")
-    # cost_return_series = _resample_series(cost_return_series, "D")
     rtr_without_cost = rtr_without_cost.resample("D").sum(min_count=1).dropna()
     rtr_with_cost = rtr_with_cost.resample("D").sum(min_count=1).dropna()
     cost_return_series = cost_return_series.resample("D").sum(min_count=1).dropna()
@@ -72,3 +64,9 @@ def analyse_cost(return_series, cost_return_series, show=True):
         show=show,
         title=r"Cost (% of capital)",
     )
+
+
+def interval_of_time_series(ts: pd.Series):
+    _t_delta = ts.index[1:] - ts.index[:-1]
+    _t_deltas_in_secs = pd.Series(f.total_seconds() for f in _t_delta)
+    return _t_deltas_in_secs.mode()[0]

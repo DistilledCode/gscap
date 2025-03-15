@@ -32,10 +32,14 @@ class SubSystem:
         self.return_series = None
         self.cost = Cost()
         self.vol_scl_log: pd.DataFrame = None
+
+        if self.instrument.meta.trading_hours < 0:
+            self.instrument.meta.trading_hours = get_th_series(self.instrument)
+
         if self.instrument.interval == "5m":
-            if self.instrument.meta.trading_hours < 0:
-                self.instrument.meta.trading_hours = get_th_series(self.instrument)
             intv_num = gscap.DAYS_IN_YEAR * self.instrument.meta.trading_hours * 12
+        elif self.instrument.interval == "1h":
+            intv_num = gscap.DAYS_IN_YEAR * self.instrument.meta.trading_hours
         elif self.instrument.interval == "1d":
             intv_num = gscap.DAYS_IN_YEAR
         self.unit_cv_target = self.annual_cv_target / np.sqrt(intv_num)
@@ -91,19 +95,8 @@ class SubSystem:
         self.instrument.combine_forecast(resample=self.fdm_resample)
 
     def calculate_return_series(self) -> pd.Series:
-        # if self.include_cost is False:
-        #     _prs = percentage_returns_series(
-        #         self.position,
-        #         self.instrument.close_price().adjusted,
-        #         multiplier=self.instrument.meta.dollar_equivalent,
-        #         capital_series=self.capital,
-        #         fx_series=None,
-        #     )
-        #     self._set_cost_zero()
-        # else:
         _prs = prs_with_cost(self, capital_series=self.capital, fx_series=None)
         self.return_series = _prs
-        # print(_prs.isna().value_counts() / len(_prs))
         # self.return_series = _prs.fillna(0.0)
         self.return_series.name = self.instrument.meta.symbol.lower()
         return self.return_series

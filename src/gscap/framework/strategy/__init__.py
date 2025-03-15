@@ -31,7 +31,7 @@ class Strategy:
         contracts: Optional[list[Dotdict]] = None,
         capital: float | int = 1_000_000,
         tau: float = 0.2,
-        interval: Literal["1d", "5m"] = "1d",
+        interval: Literal["5m", "1h", "1d"] = "1d",
         period: Literal["ins", "oos", "fbd"] = "ins",
         fdm_resample=None,
         risk_weights=None,
@@ -60,11 +60,14 @@ class Strategy:
         self.idm: Optional[pd.Series] = None
 
         if self.interval == "5m":
-            gscap.VOL_SCLR_LBACK_SPAN_SLOW = 12 * 24
-            gscap.VOL_SCLR_LBACK_SPAN_FAST = 12 * 2
+            gscap.VOL_SCLR_LBACK_SPAN_SLOW = 12 * 24  # 1 day
+            gscap.VOL_SCLR_LBACK_SPAN_FAST = 12 * 2  # 2 hours
+        elif self.interval == "1h":
+            gscap.VOL_SCLR_LBACK_SPAN_SLOW = 24 * 22  # 1 month
+            gscap.VOL_SCLR_LBACK_SPAN_FAST = 24  # 1 day
         elif self.interval == "1d":
-            gscap.VOL_SCLR_LBACK_SPAN_FAST = 22
             gscap.VOL_SCLR_LBACK_SPAN_SLOW = gscap.DAYS_IN_YEAR
+            gscap.VOL_SCLR_LBACK_SPAN_FAST = 22  # 1 month
 
     def init(self):
 
@@ -159,8 +162,9 @@ class Strategy:
         if self.name == other_strategy.name:
             _err = f"Conflicting Strategy names: {repr(self.name)} & {repr(other_strategy.name)}"
             raise RuntimeError(_err)
-        # _strategy_plots(self, benchmark=other_strategy, show=show)
+
         _metric_table(self, benchmark=other_strategy)
+        _strategy_plots(self, benchmark=other_strategy, show=show)
 
     def _process_fmapping(self):
 
