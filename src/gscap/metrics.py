@@ -108,6 +108,17 @@ def tail_ratios(return_series: pd.Series):
 
 
 def turnover_series(
+    positions_data: pd.Series | pd.DataFrame,
+    hrs_in_day: int | pd.Series = 24,
+) -> pd.Series:
+
+    if isinstance(positions_data, pd.Series):
+        return _turnover_series_from_series(positions_data, hrs_in_day)
+    elif isinstance(positions_data, pd.DataFrame):
+        return _turnover_series_from_df(positions_data, hrs_in_day)
+
+
+def _turnover_series_from_series(
     positions_series: pd.Series,
     hrs_in_day: int | pd.Series = 24,
 ) -> pd.Series:
@@ -116,6 +127,19 @@ def turnover_series(
     annualizing_factor = (252 * hrs_in_day * 3600) / intv
     abv_pos = positions_series.abs().expanding().mean().shift(1)
     delta_pos = positions_series.diff().abs()
+    _tseries = delta_pos / abv_pos
+    return _tseries * annualizing_factor
+
+
+def _turnover_series_from_df(
+    positions_df: pd.DataFrame,
+    hrs_in_day: int | pd.Series = 24,
+) -> pd.Series:
+
+    intv = interval_of_time_series(positions_df)
+    annualizing_factor = (252 * hrs_in_day * 3600) / intv
+    abv_pos = positions_df.abs().sum(axis=1).expanding().mean().shift(1)
+    delta_pos = positions_df.diff().abs().sum(axis=1)
     _tseries = delta_pos / abv_pos
     return _tseries * annualizing_factor
 

@@ -16,7 +16,9 @@ if TYPE_CHECKING:
 
 def strategy_plots(main_strat: Strategy, benchmark: Strategy = None, show=True):
     main_rs = main_strat.aggr_return_series
+    main_pos = main_strat.positions
     bench_rs = benchmark.aggr_return_series if benchmark is not None else None
+    bench_pos = benchmark.positions if benchmark is not None else None
     plot.returns(main_rs, benchmark=bench_rs, cumulative=False, show=show)
     plot.returns(main_rs, benchmark=bench_rs, cumulative=True, show=show)
     plot.returns(
@@ -32,6 +34,7 @@ def strategy_plots(main_strat: Strategy, benchmark: Strategy = None, show=True):
     plot.rolling_volatility(main_rs, benchmark=bench_rs, show=show)
     plot.rolling_sharpe(main_rs, benchmark=bench_rs, show=show)
     plot.drawdown(main_rs, benchmark=bench_rs, show=show)
+    plot.turnover(main_pos, benchmark=bench_pos, show=show)
     plot.monthly_heatmap(main_rs, benchmark=bench_rs, show=show)
 
 

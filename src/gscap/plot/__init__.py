@@ -107,8 +107,6 @@ def position(position_series: pd.Series, benchmark: pd.Series = None, fill=False
         cumulative=False,
         compound=False,
         fill=fill,
-        # hline=_ds.mean(),
-        # hlw=1.5,
         lw=LINE_WIDTH,
         title="Position Size",
         fontname="Fira Code",
@@ -124,21 +122,27 @@ def turnover(
     benchmark: pd.Series = None,
     figsize=(10, 6),
     show=False,
+    hrs_in_day: float = 24.0,
 ):
-    _ts = metrics.turnover_series(position_series)
+    _ts = metrics.turnover_series(position_series, hrs_in_day)
     _ts = _ts.resample("D").last().dropna() / 100
     _tsr = _ts.rolling(22 * 6, min_periods=22 * 3).mean().dropna()
+    # Smoothing for visuals
+    _tsr = _tsr.rolling(11, min_periods=11).mean().dropna()
+
     if benchmark is not None:
-        _bts = metrics.turnover_series(benchmark)
+        _bts = metrics.turnover_series(benchmark, hrs_in_day)
         _bts = _bts.resample("D").last().dropna() / 100
         _btsr = _bts.rolling(22 * 6, min_periods=22 * 3).mean().dropna()
+        # Smoothing for visuals
+        _btsr = _btsr.rolling(11, min_periods=11).mean().dropna()
     else:
         _btsr = None
     return qsplot.plot_timeseries(
         _tsr,
         _btsr,
         cumulative=False,
-        title="Annualized Daily Turnover (rolling 6 month)",
+        title="Annualized Daily Turnover [rolling 6 month; Smooth Curve]",
         # fill=True,
         hline=_ts.mean(),
         hlw=1.5,
