@@ -11,9 +11,7 @@ import gscap.framework.strategy.analyse as analysis
 from gscap.framework.forecast import Forecast
 from gscap.framework.instruments import Instrument
 from gscap.framework.strategy.calculations import buffer, calculate_idm
-
 from gscap.framework.subsystem import SubSystem
-
 
 
 def instrument_weight(returns: pd.DataFrame, resample="YE", n_itr=100, frac=0.1):
@@ -85,7 +83,6 @@ class Strategy:
         self.instrument_weights: pd.DataFrame = None
         self.idm: Optional[pd.Series] = None
 
-        
     def init(self):
 
         self._process_fmapping()
@@ -128,7 +125,7 @@ class Strategy:
     def _calculate_ss_return_series(self):
         for ss in self.subsystems:
             ss.calculate_return_series()
-            
+
         self.indv_return_series = pd.concat(
             [ss.return_series for ss in self.subsystems],
             axis=1,

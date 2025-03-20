@@ -7,7 +7,6 @@ from prettytable import PrettyTable
 
 import gscap
 from gscap import plot
-from gscap.framework.utils import interval_of_time_series
 from gscap.metrics import drawdown_series, tail_ratios
 
 if TYPE_CHECKING:
@@ -76,7 +75,8 @@ def stats(strat: Strategy):
     gross_returns = strat.aggr_return_series + strat.aggr_cost_return_series
     net_returns = strat.aggr_return_series
 
-    intv_in_sec = interval_of_time_series(gross_returns)
+    # intv_in_sec = interval_of_time_series(gross_returns)
+    intv_in_sec = gross_returns.interval()
     intv_ann_factor = gscap.DAYS_IN_YEAR * 24 * 3600 / intv_in_sec
 
     gross_d_rtr = gross_returns.resample("D").sum(min_count=1).dropna()
@@ -131,16 +131,25 @@ def stats(strat: Strategy):
 
     return {
         "top00": {
+            "Annualized Gross Interval Return": gross_returns.mean()
+            * intv_ann_factor
+            * 100,
+            "Annualized Gross Daily Return": gross_d_rtr.mean()
+            * gscap.DAYS_IN_YEAR
+            * 100,
+            "Annualized Gross Monthly Return": gross_m_rtr.mean() * 12 * 100,
+        },
+        "top01": {
             "Annualized Net Interval Return": annualized_net_intv_rtr * 100,
             "Annualized Gross Interval Volatility": annualized_gross_intv_std * 100,
             "Annualized Interval SR*": intv_sharpe,
         },
-        "top01": {
+        "top02": {
             "Annualized Net Daily Return": annualized_net_daily_rtr * 100,
             "Annualized Gross Daily Volatility": annualized_gross_daily_std * 100,
             "Annualized Daily SR*": daily_sharpe,
         },
-        "top02": {
+        "top03": {
             "Annualized Net Monthly Return": annualized_net_monthly_rtr * 100,
             "Annualized Gross Monthly Volatility": annualized_gross_monthly_std * 100,
             "Annualized Monthly SR*": monthly_sharpe,

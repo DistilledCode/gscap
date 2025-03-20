@@ -7,7 +7,7 @@ from gscbt.framework import volatility_scalar
 import gscap
 from gscap.framework.forecast import Forecast
 from gscap.framework.instruments import Instrument
-from gscap.framework.utils import get_th_series, days_look_back
+from gscap.framework.utils import get_th_series
 
 
 @dataclass
@@ -76,7 +76,7 @@ class SubSystem:
     @property
     def volatility_scalar(self) -> pd.Series:
         if self._volatility_scalar is None:
-            _mx = days_look_back(self.instrument)
+            _mx = self.instrument.days_look_back()
 
             self.vol_scl_log = volatility_scalar(
                 price_df=self.instrument.close_price(),

@@ -2,6 +2,7 @@ from copy import deepcopy
 from typing import Literal
 
 import numpy as np
+import pandas as pd
 from gscbt.utils import Dotdict
 from pandas import DataFrame, Series
 
@@ -198,6 +199,40 @@ class Instrument:
             return self.cfs
         return self.cfs
 
+    def clone(self):
+        """Return a deep copy of the forecast instance."""
+        return deepcopy(self)
+
+    def days_look_back(self):
+        """
+        Number of observation we have to include to cover data equal to one trading day
+        """
+        adj: pd.Series = self.close_price().adjusted.squeeze()
+        if isinstance(self.meta.trading_hours, pd.Series):
+            th = self.meta.trading_hours[-1]
+        else:
+            th = self.meta.trading_hours
+        return max(int(th * 3600 / adj.interval()), 1)
+
+    def unit_vol_perc(self, days_span: int | float = 22):
+        """
+        Returns non-forward looking interval unit volatality in terms
+        of percentage.
+        Automatically handles negative underlying price by forward
+        filling last valid price. Might not work effectively for spreads
+        but can handle outrights
+        """
+        adj: pd.Series = self.close_price().adjusted.squeeze()
+        und: pd.Series = self.close_price().underlying.squeeze()
+        _neg_values = {i: None for i in und[und.le(0)].values}
+        if len(_neg_values) > 0:
+            print(f"forward filling {len(_neg_values)} negative values.")
+        ffiled_neg_und = und.replace(_neg_values)
+
+        dlb = self.days_look_back()
+        unit_vol_in_perc = adj.diff().ewm(span=days_span * dlb).std() / ffiled_neg_und
+        return unit_vol_in_perc.shift(1)
+
     def __repr__(self):
         return f"{self.meta.symbol}, {self.meta.exchange}"
 
@@ -220,7 +255,3 @@ class Instrument:
                 self.period,
             )
         )
-
-    def clone(self):
-        """Return a deep copy of the forecast instance."""
-        return deepcopy(self)

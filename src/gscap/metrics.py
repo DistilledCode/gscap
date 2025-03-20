@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 
 import gscap
-from gscap.framework.utils import interval_of_time_series
 
 _NORMAL_DIVIDER = 5.854340606494375
 _1_DEV = 0.682689492137086
@@ -123,7 +122,7 @@ def _turnover_series_from_series(
     hrs_in_day: int | pd.Series = 24,
 ) -> pd.Series:
 
-    intv = interval_of_time_series(positions_series)
+    intv = positions_series.interval()
     annualizing_factor = (252 * hrs_in_day * 3600) / intv
     abv_pos = positions_series.abs().expanding().mean().shift(1)
     delta_pos = positions_series.diff().abs()
@@ -137,7 +136,7 @@ def _turnover_series_from_df(
     hrs_in_day: int | pd.Series = 24,
 ) -> pd.Series:
 
-    intv = interval_of_time_series(positions_df)
+    intv = positions_df.interval()
     annualizing_factor = (252 * hrs_in_day * 3600) / intv
     abv_pos = positions_df.abs().sum(axis=1).expanding().mean().shift(1)
     delta_pos = positions_df.diff().abs().sum(axis=1)

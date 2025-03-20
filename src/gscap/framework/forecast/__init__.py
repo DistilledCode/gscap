@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from datetime import timedelta
-import gscap
 import warnings
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from pandas import DataFrame
-from gscap.framework.utils import unit_vol_perc, days_look_back
+
+import gscap
 
 if TYPE_CHECKING:
     from gscap.framework.instruments import Instrument
@@ -19,7 +19,8 @@ span2hl = lambda x: x * np.log(0.5) / np.log(2 / (x + 1))
 
 
 def get_vol_regime_multiplier(instrument: Instrument):
-    uvp = unit_vol_perc(instrument)
+    # uvp =  unit_vol_perc(instrument)
+    uvp = instrument.unit_vol_perc()
     # for relative vol our lookback period is 5 years
     td = timedelta(days=gscap.DAYS_IN_YEAR * 5)
     rel_vol = uvp / uvp.rolling(window=td).mean().shift(1)
@@ -119,11 +120,11 @@ class EWMACForecast(Forecast):
 
     def generate_forecast(self, instrument: Instrument) -> pd.DataFrame:
         data = instrument.close_price()
-        fw = self.fast_window * days_look_back(instrument)
-        sw = self.slow_window * days_look_back(instrument)
+        fw = self.fast_window * instrument.days_look_back()
+        sw = self.slow_window * instrument.days_look_back()
         ftrend = data.adjusted.ewm(span=fw).mean()
         strend = data.adjusted.ewm(span=sw).mean()
-        _span = self.vol_span * days_look_back(instrument)
+        _span = self.vol_span * instrument.days_look_back()
         price_volatility = data.adjusted.diff().ewm(span=_span).std().shift(1)
         self.raw_forecast_value = (ftrend - strend) / price_volatility
 
@@ -171,7 +172,7 @@ class MeanRevForecast(Forecast):
         equi_price = daily_close_adj.ewm(span=self.equi_lb_days).mean().shift(1)
         _ci = equi_price.index.union(data.index)
         equi_price = equi_price.reindex(_ci).ffill().reindex(data.index)
-        _span = self.vol_span * days_look_back(instrument)
+        _span = self.vol_span * instrument.days_look_back()
         price_volatility = daily_close_adj.diff().ewm(span=_span).std().shift(1)
         price_volatility = price_volatility.reindex(_ci).ffill().reindex(data.index)
         self.equi_price = equi_price

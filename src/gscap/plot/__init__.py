@@ -8,7 +8,6 @@ from quantstats._plotting.wrappers import monthly_heatmap as _monthly_heatmap
 
 import gscap.metrics as metrics
 from gscap import SRC_DIR
-from gscap.framework.utils import interval_of_time_series
 
 LINE_WIDTH = 1.25
 
@@ -163,7 +162,7 @@ def rolling_long_trades(
     show=False,
     name_tuple=("Blue", "Benchmark"),
 ):
-    intv = interval_of_time_series(position_series)
+    intv = position_series.interval()
     anf = (252 * 24 * 3600) / intv
 
     def get_rolling_tl(_df: pd.DataFrame):
