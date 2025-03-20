@@ -51,18 +51,21 @@ def _parse_excel_to_dict():
             "iqfeed_symbol": row["IQFeed symbol"],
             "exchange": row["Exchange"],
             "data_from_date": row["Data From Date"],
-            "category": row["Category"],
+            # "category": row["Category"],
             "currency_multiplier": row["Currency Multiplier"],
             "currency": row["Currency"],
             "exchange_rate": row["Exchange rate"],
             "dollar_equivalent": row["Dollar equivalent"],
             "contract_months": row["Contract Months"],
             "last_contract": row["Last Contract"],
-            "tick_value": row.get("Tick Value", None),
+            "min_price_fluctuation": row.get("Min Price Fluctuation", None),
             "trading_hours": row.get("Trading Hours", None),
             "currency_tick_value": row.get("Currency Tick Value", None),
             "cost_in_ticks": row.get("Cost in Ticks", None),
             "commission_cost": row.get("Commission Cost", None),
+            "asset_class": row.get("Asset Class", None),
+            "product_group": row.get("Product Group", None),
+            "repeat": row.get("Repeat", None),
         }
 
         # Populate the nested dictionary with exchange and symbol

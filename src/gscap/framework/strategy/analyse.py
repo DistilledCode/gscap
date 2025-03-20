@@ -15,36 +15,66 @@ if TYPE_CHECKING:
 
 
 def strategy_plots(main_strat: Strategy, benchmark: Strategy = None, show=True):
-    main_rs = main_strat.aggr_return_series
+    main_net_rs = main_strat.aggr_return_series
+    main_cost_rs = main_strat.aggr_cost_return_series
+    main_gross_rs = main_net_rs + main_cost_rs
+    main_gross_rs.name = main_strat.name
     main_pos = main_strat.positions
-    bench_rs = benchmark.aggr_return_series if benchmark is not None else None
-    bench_pos = benchmark.positions if benchmark is not None else None
-    plot.returns(main_rs, benchmark=bench_rs, cumulative=False, show=show)
-    plot.returns(main_rs, benchmark=bench_rs, cumulative=True, show=show)
+    main_pos.name = main_strat.name
+    if benchmark is not None:
+        bench_net_rs = benchmark.aggr_return_series
+        bench_cost_rs = benchmark.aggr_cost_return_series
+        bench_gross_rs = bench_cost_rs + bench_net_rs
+        bench_gross_rs.name = benchmark.name
+        bench_pos = benchmark.positions
+        bench_pos.name = benchmark.name
+    else:
+        bench_net_rs = None
+        bench_net_rs = None
+        bench_pos = None
+        bench_gross_rs = None
     plot.returns(
-        main_rs,
-        benchmark=bench_rs,
+        main_net_rs,
+        benchmark=bench_net_rs,
+        cumulative=False,
+        show=show,
+        title="Net Returns",
+    )
+    plot.returns(
+        main_net_rs,
+        benchmark=bench_net_rs,
+        cumulative=True,
+        show=show,
+        title="Net Returns",
+    )
+    plot.returns(
+        main_gross_rs,
+        benchmark=bench_gross_rs,
+        cumulative=True,
+        show=show,
+        title="Gross Returns",
+    )
+    plot.returns(
+        main_net_rs,
+        benchmark=bench_net_rs,
         cumulative=True,
         show=show,
         starting_capital=main_strat.capital,
-        title="Equity Curve",
+        title="Net Equity Curve",
     )
-    plot.return_histogram(main_rs, benchmark=bench_rs, show=show)
-    plot.eoy_returns(main_rs, benchmark=bench_rs, show=show)
-    plot.rolling_volatility(main_rs, benchmark=bench_rs, show=show)
-    plot.rolling_sharpe(main_rs, benchmark=bench_rs, show=show)
-    plot.drawdown(main_rs, benchmark=bench_rs, show=show)
+    plot.return_histogram(main_net_rs, benchmark=bench_net_rs, show=show)
+    plot.eoy_returns(main_net_rs, benchmark=bench_net_rs, show=show)
+    plot.drawdown(main_net_rs, benchmark=bench_net_rs, show=show)
     plot.turnover(main_pos, benchmark=bench_pos, show=show)
-    plot.monthly_heatmap(main_rs, benchmark=bench_rs, show=show)
+    plot.rolling_volatility(main_net_rs, benchmark=bench_net_rs, show=show)
+    plot.rolling_sharpe(main_net_rs, benchmark=bench_net_rs, show=show)
+    plot.monthly_heatmap(main_net_rs, benchmark=bench_net_rs, show=show)
 
 
 def stats(strat: Strategy):
 
     gross_returns = strat.aggr_return_series + strat.aggr_cost_return_series
     net_returns = strat.aggr_return_series
-
-    # gross_intv_rtr = gross_returns.mean()
-    # net_intv_rtr = gross_returns.mean()
 
     intv_in_sec = interval_of_time_series(gross_returns)
     intv_ann_factor = gscap.DAYS_IN_YEAR * 24 * 3600 / intv_in_sec
@@ -188,8 +218,8 @@ def metric_table(main_strat: Strategy, benchmark: Strategy = None):
 
 
 def cost_stats(strat: Strategy):
-    return_series = strat.aggr_return_series
-    cost_series = strat.aggr_cost_return_series
+    return_series = strat.aggr_return_series.copy()
+    cost_series = strat.aggr_cost_return_series.copy()
 
     rtr_without_cost = return_series + cost_series
     rtr_with_cost = return_series

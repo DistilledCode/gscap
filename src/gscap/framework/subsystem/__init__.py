@@ -7,7 +7,7 @@ from gscbt.framework import volatility_scalar
 import gscap
 from gscap.framework.forecast import Forecast
 from gscap.framework.instruments import Instrument
-from gscap.framework.utils import get_th_series
+from gscap.framework.utils import get_th_series, days_look_back
 
 
 @dataclass
@@ -27,6 +27,8 @@ class SubSystem:
         annual_cash_vol_tgt: float,
         capital: float | int = 1_000_000,
         fdm_resample=gscap.FDM_RESAMPLE,
+        vscl_lb_slow_days=252 * 2,
+        vscl_lb_fast_days=22,
     ):
         self.instrument = instrument.clone()
         self.forecasts = (
@@ -42,27 +44,46 @@ class SubSystem:
         self.return_series = None
         self.cost = Cost()
         self.vol_scl_log: pd.DataFrame = None
+        self.vol_sclar_lb_slow = vscl_lb_slow_days
+        self.vol_sclar_lb_fast = vscl_lb_fast_days
 
+        self._init()
+
+    def _init(self):
+        _mapping = {
+            "1m": 1.0,
+            "2m": 2.0,
+            "3m": 3.0,
+            "4m": 4.0,
+            "5m": 5.0,
+            "10m": 10.0,
+            "15m": 15.0,
+            "30m": 30.0,
+            "1h": 60.0,
+            "4h": 240.0,
+        }
         if self.instrument.meta.trading_hours < 0:
             self.instrument.meta.trading_hours = get_th_series(self.instrument)
 
-        if self.instrument.interval == "5m":
-            intv_num = gscap.DAYS_IN_YEAR * self.instrument.meta.trading_hours * 12
-        elif self.instrument.interval == "1h":
-            intv_num = gscap.DAYS_IN_YEAR * self.instrument.meta.trading_hours
-        elif self.instrument.interval == "1d":
+        if self.instrument.interval == "1d":
             intv_num = gscap.DAYS_IN_YEAR
+        else:
+            _mx = 60 / _mapping.get(self.instrument.interval, None)
+            _th = self.instrument.meta.trading_hours + 2
+            intv_num = gscap.DAYS_IN_YEAR * _th * _mx
         self.unit_cv_target = self.annual_cv_target / np.sqrt(intv_num)
 
     @property
     def volatility_scalar(self) -> pd.Series:
         if self._volatility_scalar is None:
+            _mx = days_look_back(self.instrument)
+
             self.vol_scl_log = volatility_scalar(
                 price_df=self.instrument.close_price(),
                 ticker=self.instrument.meta,
                 unit_cash_volatility_target=self.unit_cv_target,
-                slow_span=gscap.VOL_SCLR_LBACK_SPAN_SLOW,
-                fast_span=gscap.VOL_SCLR_LBACK_SPAN_FAST,
+                slow_span_days=self.vol_sclar_lb_slow * _mx,
+                fast_span_days=self.vol_sclar_lb_fast * _mx,
             )
             self._volatility_scalar = self.vol_scl_log.vol_scalar.squeeze()
         return self._volatility_scalar
@@ -106,7 +127,6 @@ class SubSystem:
     def calculate_return_series(self) -> pd.Series:
         _prs = price_return_series(self, capital_series=self.capital, fx_series=None)
         self.return_series = _prs
-        # self.return_series = _prs.fillna(0.0)
         self.return_series.name = self.instrument.meta.symbol.lower()
         return self.return_series
 
@@ -185,17 +205,10 @@ def price_return_series(
 
     net_perc_return = gross_perc_return - cost_in_perc
 
-    # _annual_rolling_price_vol = adjusted_price_series.diff().ewm(
-    #     span=gscap.DAYS_IN_MONTH
-    # ).std() * np.sqrt(gscap.DAYS_IN_YEAR)
-
     ss.cost.slippage_currency = slippage_cost_currency * fx_series_aligned
     ss.cost.commission_currency = commission_cost_currency * fx_series_aligned
     ss.cost.total_currency = tcost_base_currency
     ss.cost.return_series = cost_in_perc
     ss.cost.return_series.name = ss.instrument.meta.symbol.lower()
 
-    # ss.cost.risk_adj_per_lot = (tcost_base_currency / lots_traded) / (
-    #     _annual_rolling_price_vol * instrument.meta.dollar_equivalent
-    # )
     return net_perc_return

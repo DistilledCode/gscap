@@ -167,7 +167,7 @@ class Instrument:
         elif period == "oos":
             _data = data[data.index.year.isin([2021, 2022])]
         elif period == "fbd":
-            _data = data[data.index.year >= 2023]
+            _data = data[data.index.year.isin([2023, 2024])]
         if _data.empty:
             raise ValueError(
                 f"No data found for {self.meta.symbol} for {period=}."
@@ -200,10 +200,6 @@ class Instrument:
 
     def __repr__(self):
         return f"{self.meta.symbol}, {self.meta.exchange}"
-        # return (
-        #     f"{self.meta.product} ({self.meta.symbol}, "
-        #     f"{self.meta.exchange}, {self.meta.currency})"
-        # )
 
     def __str__(self):
         return repr(self)

@@ -11,9 +11,9 @@ import gscap.framework.strategy.analyse as analysis
 from gscap.framework.forecast import Forecast
 from gscap.framework.instruments import Instrument
 from gscap.framework.strategy.calculations import buffer, calculate_idm
+
 from gscap.framework.subsystem import SubSystem
 
-# from gscap.framework.utils import analyse_cost
 
 
 def instrument_weight(returns: pd.DataFrame, resample="YE", n_itr=100, frac=0.1):
@@ -22,6 +22,31 @@ def instrument_weight(returns: pd.DataFrame, resample="YE", n_itr=100, frac=0.1)
         columns=returns.columns,
         index=returns.index,
     )
+
+
+def top_down_rw(
+    fmapping: dict[Instrument, Forecast | list[Forecast]],
+) -> dict[Instrument, float]:
+    instruments = fmapping.keys()
+    classification = dict()
+    for i in instruments:
+        classification.setdefault(i.meta.asset_class, dict())
+        classification[i.meta.asset_class].setdefault(i.meta.product_group, [])
+        classification[i.meta.asset_class][i.meta.product_group].append(i)
+    VOL_W = 0.05
+    NORM_FACTOR = 1 - VOL_W
+    weights = {classification.pop("Volatility")["Volatility"][0]: VOL_W}
+    _ac_weights = {i: 1 / len(classification) for i in classification}
+    _ac_weights
+    _pg_weights = {}
+    for k, v in classification.items():
+        _pg_weights |= {i: (1 / len(v)) * _ac_weights[k] for i in v}
+        for prod_type, cntrcts in v.items():
+            _n = len(cntrcts)
+            for contract in cntrcts:
+                weights[contract] = 1 / _n * _pg_weights[prod_type] * NORM_FACTOR
+    assert np.allclose(sum(weights.values(), 0), 1), "weight not summing up to 1"
+    return weights
 
 
 class Strategy:
@@ -35,7 +60,7 @@ class Strategy:
         interval: Literal["5m", "1h", "1d"] = "1d",
         period: Literal["ins", "oos", "fbd"] = "ins",
         fdm_resample=None,
-        risk_weights=None,
+        risk_weights: Optional[dict[Dotdict, float] | str] = None,
         buffer_fraction: Optional[float] = None,
         name: Optional[str] = "strategy_xx",
     ):
@@ -60,16 +85,7 @@ class Strategy:
         self.instrument_weights: pd.DataFrame = None
         self.idm: Optional[pd.Series] = None
 
-        if self.interval == "5m":
-            gscap.VOL_SCLR_LBACK_SPAN_SLOW = 12 * 24  # 1 day
-            gscap.VOL_SCLR_LBACK_SPAN_FAST = 12 * 2  # 2 hours
-        elif self.interval == "1h":
-            gscap.VOL_SCLR_LBACK_SPAN_SLOW = 24 * 22  # 1 month
-            gscap.VOL_SCLR_LBACK_SPAN_FAST = 24  # 1 day
-        elif self.interval == "1d":
-            gscap.VOL_SCLR_LBACK_SPAN_SLOW = gscap.DAYS_IN_YEAR
-            gscap.VOL_SCLR_LBACK_SPAN_FAST = 22  # 1 month
-
+        
     def init(self):
 
         self._process_fmapping()
@@ -82,7 +98,6 @@ class Strategy:
                 annual_cash_vol_tgt=self.annual_cvt,
                 fdm_resample=self.fdm_resample,
                 capital=self.capital,
-                # include_cost=self.include_cost,
             )
             for inst, fcasts in self.fmapping.items()
         ]
@@ -90,6 +105,8 @@ class Strategy:
         if self.risk_weights is None:
             _n = len(self.fmapping)
             self.risk_weights = {inst: 1 / _n for inst in self.fmapping}
+        elif self.risk_weights == "td":
+            self.risk_weights = top_down_rw(self.fmapping)
 
     # ! This bad boy will get parallelized!!
     def _calculate_ss_positions(self):
@@ -111,6 +128,7 @@ class Strategy:
     def _calculate_ss_return_series(self):
         for ss in self.subsystems:
             ss.calculate_return_series()
+            
         self.indv_return_series = pd.concat(
             [ss.return_series for ss in self.subsystems],
             axis=1,

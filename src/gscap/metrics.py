@@ -128,6 +128,7 @@ def _turnover_series_from_series(
     abv_pos = positions_series.abs().expanding().mean().shift(1)
     delta_pos = positions_series.diff().abs()
     _tseries = delta_pos / abv_pos
+    _tseries.name = positions_series.name
     return _tseries * annualizing_factor
 
 

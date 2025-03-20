@@ -8,21 +8,24 @@ def volatility_scalar(
     price_df: pd.DataFrame,
     ticker,
     unit_cash_volatility_target,
-    slow_span=None,
-    fast_span=None,
+    slow_span_days=None,
+    fast_span_days=None,
 ):
 
-    und = price_df.underlying.squeeze()
+    und: pd.Series = price_df.underlying.squeeze()
 
-    vps_slow = und.diff().ewm(span=slow_span).std()
-    vps_fast = und.diff().ewm(span=fast_span).std()
+    # ! Considering only day end close price for std calculation
+    # ! and forward filling for vps_slow will not work.
+    # ! It will decimate the returns
+    vps_slow = und.diff().ewm(span=slow_span_days).std()
+    vps_fast = und.diff().ewm(span=fast_span_days).std()
     vol_price_term = vps_slow * 0.30 + vps_fast * 0.70
 
     # It can be inf when the first n-differences are same.
     _z = vol_price_term[vol_price_term == 0.00]
     if len(_z) > 0:
         print(f"Removing {len(_z)} instances of zero price diff vol")
-        print("\t", *list(_z.index), sep="\n\t")
+        print("\t", *list(_z.index), sep="\n\t",end="\n\n")
         vol_price_term.replace(0.00, np.nan, inplace=True)
 
     vol_exposure_terms = vol_price_term * ticker.dollar_equivalent

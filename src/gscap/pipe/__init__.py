@@ -1,9 +1,3 @@
-#
-# ! ########################################### ! #
-# !                  VERSION 3.0                ! #
-# ! ########################################### ! #
-
-
 import pandas as pd
 from gscbt import DataPipeline
 from gscbt.utils import Dotdict
@@ -21,16 +15,15 @@ def _get_prices(contracts: list[Dotdict], ohlcv: str, interval="1d") -> pd.DataF
     }
     if len(ohlcv) == 1:
         _l = _map[ohlcv]
-
     else:
         _l = [_map[i] for i in ohlcv]
 
-    # contracts = [i.upper() for i in contracts]
-    adjusted = pipe.get(contracts, ohlcv, interval=interval)[_l]
-    underlying = pipe.get(contracts, ohlcv, interval=interval, back_adjusted=False)[_l]
+    _e = "2024-12-31"
+    adj = pipe.get(contracts, ohlcv, interval=interval, back_adjusted=True, end=_e)[_l]
+    und = pipe.get(contracts, ohlcv, interval=interval, back_adjusted=False, end=_e)[_l]
 
-    assert all(adjusted.columns == underlying.columns)
-    cols = adjusted.columns
+    assert all(adj.columns == und.columns)
+    cols = adj.columns
 
     if isinstance(cols, pd.MultiIndex):
         if len(contracts) == 1:
@@ -45,7 +38,7 @@ def _get_prices(contracts: list[Dotdict], ohlcv: str, interval="1d") -> pd.DataF
         _undrlyng_col = [("underlying", i.lower()) for i in cols]
     multi_columns = _adj_col + _undrlyng_col
     multi_index = pd.MultiIndex.from_tuples(multi_columns)
-    df = pd.concat((adjusted, underlying), axis=1)
+    df = pd.concat((adj, und), axis=1)
     df.columns = multi_index
     return df
 

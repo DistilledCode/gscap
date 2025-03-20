@@ -129,13 +129,14 @@ def turnover(
     _tsr = _ts.rolling(22 * 6, min_periods=22 * 3).mean().dropna()
     # Smoothing for visuals
     _tsr = _tsr.rolling(11, min_periods=11).mean().dropna()
-
+    _tsr.name = position_series.name
     if benchmark is not None:
         _bts = metrics.turnover_series(benchmark, hrs_in_day)
         _bts = _bts.resample("D").last().dropna() / 100
         _btsr = _bts.rolling(22 * 6, min_periods=22 * 3).mean().dropna()
         # Smoothing for visuals
         _btsr = _btsr.rolling(11, min_periods=11).mean().dropna()
+        _btsr.name = benchmark.name
     else:
         _btsr = None
     return qsplot.plot_timeseries(
