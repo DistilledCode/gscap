@@ -8,6 +8,8 @@ import polars as pl
 
 # cosnts
 SERVER_IP_PORT = "192.168.0.25:8080"
+# LOCAL_WIN_DIRECT_IQFEED_IP_PORT = "192.168.0.xx:5675"
+LOCAL_WIN_DIRECT_IQFEED_IP_PORT = "192.168.0.68:5675"
 
 # application local data in user's space
 LOCAL_STORAGE_PATH = Path.home() / ".gscbt"
@@ -25,6 +27,7 @@ API = {
     "GET_IQFEED_DATA": f"http://{SERVER_IP_PORT}/api/v2/data/iqfeed",
     "GET_MARKET_DATA": f"http://{SERVER_IP_PORT}/api/v1/data/ohlcv",
     "QUANT_APIS": f"http://{SERVER_IP_PORT}/api/v1/quant/data/ohlcv",  # for 5 min data
+    "DIRECT_IQFEED_APIS": f"http://{LOCAL_WIN_DIRECT_IQFEED_IP_PORT}/api/v1/data_parquet/iqfeed",
 }
 
 
