@@ -26,7 +26,12 @@ dependencies = [
     "calplot==0.1.7.5",
     "prettytable==3.14.0",
     "numba==0.61.0",
-    "openpyxl==3.1.5"
+    "openpyxl==3.1.5",
+    "hurst==0.0.5",
+    "arch==7.2.0",
+    "statsmodels==0.14.4",
+    "watchdog==6.0.0",
+    "streamlit==1.45.1"
 ]
 
 [tool.flake8]

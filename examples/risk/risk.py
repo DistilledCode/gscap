@@ -42,6 +42,42 @@ ywise_hstacked = ywise_hstacked[::-1].sort_index(ascending=False)
 
 lb = 20
 
+risk_vol = get_risk_vol(data_badj)
+risk_ext = get_risk_ext(data_badj)
+
+rolling_std = ywise_hstacked.interpolate().rolling(lb, min_periods=lb // 2).std()
+
+ywise_vstacked = rolling_std.reset_index()
+ywise_vstacked = ywise_vstacked.melt(
+    id_vars="days_to_roll",
+    var_name="year",
+    value_name="value",
+)
+
+
+ywise_vstacked["days_to_roll"] = ywise_vstacked["days_to_roll"].dt.days
+ywise_vstacked.dropna(inplace=True)
+ywise_vstacked = ywise_vstacked.sort_values(["days_to_roll", "year"])
+
+spline_models_list = spline_models(ywise_vstacked)
+
+roll_wise_vstacked_vol = pd.concat(
+    [
+        roll_slice.close.rolling(lb, min_periods=10).std()
+        for _, roll_slice in synthetic_sliced
+    ]
+)
+roll_wise_vstacked_vol = roll_wise_vstacked_vol.squeeze()
+roll_wise_vstacked_vol.name = "roll_wise_vol"
+
+data_nbadj = pd.concat([data_nbadj, risk_ext, roll_wise_vstacked_vol], axis=1)
+
+roll_index_date_map, skip_index = get_index_map(synthetic_sliced, data_nbadj)
+
+frisk = final_risk(data_nbadj, roll_index_date_map, skip_index, spline_models_list)
+frisk_ratcheted = get_ratcheted(frisk, fall_factor=0.0625)
+
+
 fig = make_subplots(
     rows=2,
     cols=1,
@@ -89,40 +125,6 @@ fig.update_xaxes(tickformat="%b %d", tickmode="auto", row=2, col=1)
 fig.show()
 
 
-risk_vol = get_risk_vol(data_badj)
-risk_ext = get_risk_ext(data_badj)
-
-rolling_std = ywise_hstacked.interpolate().rolling(lb, min_periods=lb // 2).std()
-
-ywise_vstacked = rolling_std.reset_index()
-ywise_vstacked = ywise_vstacked.melt(
-    id_vars="days_to_roll",
-    var_name="year",
-    value_name="value",
-)
-
-
-ywise_vstacked["days_to_roll"] = ywise_vstacked["days_to_roll"].dt.days
-ywise_vstacked.dropna(inplace=True)
-ywise_vstacked = ywise_vstacked.sort_values(["days_to_roll", "year"])
-
-spline_models_list = spline_models(ywise_vstacked)
-
-roll_wise_vstacked_vol = pd.concat(
-    [
-        roll_slice.close.rolling(lb, min_periods=10).std()
-        for _, roll_slice in synthetic_sliced
-    ]
-)
-roll_wise_vstacked_vol = roll_wise_vstacked_vol.squeeze()
-roll_wise_vstacked_vol.name = "roll_wise_vol"
-
-data_nbadj = pd.concat([data_nbadj, risk_ext, roll_wise_vstacked_vol], axis=1)
-
-roll_index_date_map, skip_index = get_index_map(synthetic_sliced, data_nbadj)
-
-frisk = final_risk(data_nbadj, roll_index_date_map, skip_index, spline_models_list)
-frisk_ratcheted = get_ratcheted(frisk, fall_factor=0.0625)
 fig = make_subplots(
     rows=2,
     cols=1,
