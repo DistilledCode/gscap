@@ -2,6 +2,7 @@ black
 isort
 ipykernel
 jupyter
+wheel
 -e ./custom/quantstats
--e ./custom/gscbt
+git+https://github.com/priyam-gsc/gscbt.git
 -e .
