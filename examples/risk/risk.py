@@ -2,7 +2,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from gscbt import Ticker
 from gscap.risk.helper import get_data, get_synth_slices, get_index_map, get_ratcheted
-from gscap.risk.models import spline_models, get_risk_vol, get_risk_ext, final_risk
+from gscap.risk.models import spline_models_v2, get_risk_vol, get_risk_ext, final_risk
 
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
@@ -59,7 +59,8 @@ ywise_vstacked["days_to_roll"] = ywise_vstacked["days_to_roll"].dt.days
 ywise_vstacked.dropna(inplace=True)
 ywise_vstacked = ywise_vstacked.sort_values(["days_to_roll", "year"])
 
-spline_models_list = spline_models(ywise_vstacked)
+spline_models_list = spline_models_v2(ywise_hstacked, lb=lb, qtile=0.9)
+
 
 roll_wise_vstacked_vol = pd.concat(
     [

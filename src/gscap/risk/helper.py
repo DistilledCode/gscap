@@ -53,7 +53,7 @@ def hcf_of_fractions(*fractions):
 def get_data(exp: str, tickers: list, sd: str, ed: str, badj: bool):
     _data = get_spread(
         expression=exp,
-        ohlcv="ohlcv",
+        ohlcv="ohlc",
         back_adjusted=badj,
         start=sd,
         end=ed,

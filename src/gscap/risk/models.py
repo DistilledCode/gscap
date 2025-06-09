@@ -31,7 +31,44 @@ def get_risk_ext(data: pd.DataFrame):
     return ult
 
 
-def spline_models(df: pd.DataFrame) -> list[UnivariateSpline]:
+def spline_models_v2(df: pd.DataFrame, lb: int, qtile: float) -> list[UnivariateSpline]:
+    spline_models = []
+    for yr in range(df.shape[-1]):
+        kk = df.iloc[:, : (yr + 1)]
+        qtile_df = kk.interpolate().rolling(lb, min_periods=lb // 2)
+        qtile_df = qtile_df.std().quantile(qtile, axis=1).dropna().iloc[::-1]
+        x = qtile_df.index.days
+        y = qtile_df.values
+        spline = UnivariateSpline(x, y, k=5, s=len(x) * y.var() ** 2)
+        spline_models.append(spline)
+        # x_smooth = np.linspace(0, 365, 500)
+        # y_smooth = spline(x_smooth)
+
+        # fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(20, 6))
+        # ax[0].scatter(x, y, alpha=0.1, label="Raw data")
+        # ax[0].plot(x_smooth, y_smooth, color="red", label="Spline")
+        # ax[0].set_xlabel("Days to Roll")
+        # ax[0].set_ylabel("Quantile Value")
+        # ax[0].set_title(
+        #     f"Spline Fitted to {quantile} quantile Yearly stacked upto {kk.columns[-1]}"
+        # )
+        # ax[0].legend()
+        # ax[0].invert_xaxis()  # optional, if lower days are later
+
+        # ax[1].plot(x_smooth, y_smooth, color="red", label="Spline")
+        # ax[1].set_xlabel("Days to Roll")
+        # ax[1].set_ylabel("Quantile Value")
+        # ax[1].set_title(
+        #     f"Spline Fitted to {quantile} quantile Yearly stacked upto {kk.columns[-1]}"
+        # )
+        # ax[1].legend()
+        # ax[1].invert_xaxis()  # optional, if lower days are later
+
+        # plt.show()
+    return spline_models
+
+
+def spline_models_v1(df: pd.DataFrame) -> list[UnivariateSpline]:
 
     spline_models = []
 
@@ -84,10 +121,6 @@ def final_risk(data_nbadj, roll_index_date_map, skip_index, spline_models):
             if ts.roll_wise_vol >= modeled_risk:
                 frisk.append((ts.Index, ts.risk_ext))
             else:
-                # print(
-                #     f" {ts.Index.date()} Model Exist: "
-                #     f"{ts.roll_wise_vol=:.2f} {modeled_risk=:.2f}"
-                # )
                 to_add = modeled_risk - ts.roll_wise_vol
                 new_vol = np.sqrt(ts.risk_ext**2 + to_add**2)
                 frisk.append((ts.Index, new_vol))
