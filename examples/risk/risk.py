@@ -2,7 +2,9 @@ import pandas as pd
 import plotly.graph_objects as go
 from gscbt import Ticker
 from gscap.risk.helper import get_data, get_synth_slices, get_index_map, get_ratcheted
-from gscap.risk.models import spline_models_v2, get_risk_vol, get_risk_ext, final_risk
+from gscap.risk.models import final_risk
+from gscap.risk.models import get_risk_vol, get_risk_ext
+from gscap.risk.models import spline_models_v2
 
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
@@ -19,8 +21,8 @@ exp = "ZCK25-2*ZCN25+ZCU25"
 exp = "-2*CLN25 + 2*CLQ25 + RBN25-RBQ25 + HON25-HOQ25"
 start = "2009-01-01"
 end = "2024-12-31"
-data_nbadj = get_data(exp, tickers, start, end, badj=False)
-data_badj = get_data(exp, tickers, start, end, badj=True)
+data_nbadj = get_data(exp, tickers, start, end, badj=False, roll_over=10)
+data_badj = get_data(exp, tickers, start, end, badj=True, roll_over=10)
 
 
 synthetic_sliced = list(get_synth_slices(data_nbadj))

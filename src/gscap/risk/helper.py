@@ -5,6 +5,7 @@ import math
 from functools import reduce
 from gscbt.data import get_spread, RollMethod
 from gscbt import Ticker, Cache
+from synthetic_builder_py import wrapper
 
 cme = Ticker.TICKERS.cme
 iceec = Ticker.TICKERS.iceec
@@ -50,25 +51,45 @@ def hcf_of_fractions(*fractions):
     return simplified_num / simplified_den
 
 
-def get_data(exp: str, tickers: list, sd: str, ed: str, badj: bool):
-    _data = get_spread(
-        expression=exp,
-        ohlcv="ohlc",
-        back_adjusted=badj,
-        start=sd,
-        end=ed,
-        roll_method=RollMethod.contractwise,
-        cache_mode=Cache.Mode.market_api,
+def get_data(
+    exp: str,
+    tickers: list,
+    sd: str,
+    ed: str,
+    badj: bool,
+    roll_over: int,
+    styr: int = 2010,
+    badjmode: int = 1,
+):
+
+    _data = wrapper(
+        exp=exp,
+        back_adjustd=badj,
+        start_year=styr,
+        offset=roll_over,
         max_lookback_for_back_adjust=10,
-        verbose=False,
+        back_adjust_mode=badjmode,
     )
+
+    # _data = get_spread(
+    #     expression=exp,
+    #     ohlcv="ohlc",
+    #     back_adjusted=badj,
+    #     start=sd,
+    #     end=ed,
+    #     roll_method=RollMethod.contractwise,
+    #     cache_mode=Cache.Mode.market_api,
+    #     max_lookback_for_back_adjust=10,
+    #     verbose=False,
+    # )
     _data.dropna(inplace=True)
     if tickers is None:
         return _data
     else:
         hcf = hcf_of_fractions([i.min_price_fluctuation for i in tickers])
-        for c in ("open", "high", "low", "close"):
-            _data[c] = minfluc(_data[c], hcf)
+        # for c in ("open", "high", "low", "close"):
+        # for c in ("open", "high", "low", "close"):
+        _data.close = minfluc(_data.close, hcf)
         return _data
 
 
@@ -104,6 +125,7 @@ def get_ratcheted(_margin: pd.Series, fall_factor=0.01):
     return pd.Series(
         asymmetric_filter_iterative(_margin, fall_factor=fall_factor),
         index=_margin.index,
+        name=f"{_margin.name}_ratcheted",
     )
 
 

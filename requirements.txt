@@ -5,4 +5,5 @@ jupyter
 wheel
 -e ./custom/quantstats
 git+https://github.com/priyam-gsc/gscbt.git
+git+https://github.com/priyam-gsc/synthetic_builder_py.git
 -e .
