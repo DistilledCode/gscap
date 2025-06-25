@@ -42,6 +42,12 @@ def get_ext(series: pd.Series) -> float:
     loc = series.mean()
     scale = series.std()
 
+    #! If we get all same values, then scale will be 0 and norm.ppf will return NaN
+    #! Highest chance of this happening is with smallest rolling window!
+    #! But according to the model downstream flow, if the current extreme value is
+    #! too low then other longer window rolling risk will take over. So it should be
+    #! safe to forward fill any NaN
+
     return np.abs(stats.norm.ppf(0.975, loc=loc, scale=scale))
 
 
@@ -60,7 +66,7 @@ def get_risk_vol(data: pd.DataFrame) -> pd.Series:
         data (pd.DataFrame): DataFrame containing price data with a 'close' column.
                             Must have sufficient data points for calculations
                             (minimum 20 observations recommended).
-    
+
     Returns:
         pd.Series: Composite risk volatility series with name 'risk_vol'.
                    Values represent the volatility estimate for each time point.
@@ -78,7 +84,7 @@ def get_risk_vol(data: pd.DataFrame) -> pd.Series:
     expnd = data.close.diff().expanding(min_periods=20).std()
     two_yr = data.close.diff().rolling(252 * 2, min_periods=20).std()
     six_m = data.close.diff().rolling(22 * 6, min_periods=20).std()
-    ten_d = data.close.diff().ewm(10).std()
+    ten_d = data.close.diff().rolling(10).std()
 
     ult = expnd * 0.10 + two_yr * 0.25 + six_m * 0.25 + ten_d * 0.40
     ult = pd.concat([ten_d, ult], axis=1).max(axis=1).squeeze()
@@ -118,7 +124,10 @@ def get_risk_ext(data: pd.DataFrame) -> pd.Series:
     two_yr = data.close.diff().rolling(252 * 2, min_periods=20).apply(get_ext)
     six_m = data.close.diff().rolling(22 * 6, min_periods=20).apply(get_ext)
     ten_d = data.close.diff().rolling(10).apply(get_ext)
+    
+    ten_d = ten_d.ffill()
 
+    
     ult = expnd * 0.10 + two_yr * 0.25 + six_m * 0.25 + ten_d * 0.40
     ult = pd.concat([ten_d, ult], axis=1).max(axis=1).squeeze()
     ult.name = "risk_ext"

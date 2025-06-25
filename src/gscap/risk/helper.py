@@ -133,7 +133,8 @@ def get_synth_slices(data: pd.DataFrame):
 
     index_slices = [
         data.index[0],
-        *data[data.days_to_roll.dt.days == 0].index,
+        # *data[data.days_to_roll.dt.days == 0].index,
+        *data[data.days_to_roll.shift(-1).dt.days.diff().ge(0)].index,
         data.index[-1],
     ]
     for i in range(len(index_slices) - 1):
@@ -166,15 +167,13 @@ def get_index_map(synthetic_sliced, data_nbadj):
     roll_index_date_map.fillna(0, inplace=True)
     roll_index_date_map.roll_index = roll_index_date_map.roll_index.astype(int)
 
-    skip_index = [
-        index
-        for index, count in (
-            roll_index_date_map.reset_index()
-            .groupby("roll_index")
-            .agg("count")["index"]
-        ).items()
-        if count < 300
-    ]
+    # roll_index_count = roll_index_date_map.reset_index()
+    # roll_index_count = roll_index_count.groupby("roll_index").agg("count")["index"]
+    # lq = roll_index_count.quantile(0.10)
+
+    # skip_index = [index for index, count in roll_index_count.items() if count <= lq]
 
     roll_index_date_map = roll_index_date_map.to_dict(orient="index")
-    return roll_index_date_map, skip_index
+
+    # no skip indexes!
+    return roll_index_date_map, []
