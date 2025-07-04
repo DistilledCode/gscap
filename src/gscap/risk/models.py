@@ -19,22 +19,22 @@ from scipy.interpolate import UnivariateSpline
 import scipy.stats as stats
 
 
-def get_ext(series: pd.Series) -> float:
+def get_ext(series: pd.Series, tail_pct: float = 0.975) -> float:
     """
     Calculate extreme value estimate using normal distribution assumption.
-    
+
     This function estimates the extreme value (97.5th percentile) of a series
     by fitting a normal distribution to the data and calculating the 2.5% tail
     value in absolute terms.
-    
+
     Args:
         series (pd.Series): Input time series data for which to calculate
                            the extreme value estimate.
-    
+
     Returns:
         float: Absolute value of the 97.5th percentile estimate based on
                normal distribution fit (mean and standard deviation).
-    
+
     Note:
         This approach assumes the input series follows a normal distribution.
         The commented alternative approach uses empirical quantiles directly.
@@ -48,20 +48,20 @@ def get_ext(series: pd.Series) -> float:
     #! too low then other longer window rolling risk will take over. So it should be
     #! safe to forward fill any NaN
 
-    return np.abs(stats.norm.ppf(0.975, loc=loc, scale=scale))
+    return np.abs(stats.norm.ppf(tail_pct, loc=loc, scale=scale))
 
 
 def get_risk_vol(data: pd.DataFrame) -> pd.Series:
     """
     Calculate composite risk volatility using multiple timeframes.
-    
+
     This function combines volatility estimates from different time horizons
     to create a robust risk volatility measure. It uses a weighted combination
     of expanding, rolling, and exponentially weighted moving averages.
-    
+
     The weighting scheme prioritizes shorter-term volatility (10-day EWM) while
     incorporating longer-term structural volatility patterns.
-    
+
     Args:
         data (pd.DataFrame): DataFrame containing price data with a 'close' column.
                             Must have sufficient data points for calculations
@@ -70,13 +70,13 @@ def get_risk_vol(data: pd.DataFrame) -> pd.Series:
     Returns:
         pd.Series: Composite risk volatility series with name 'risk_vol'.
                    Values represent the volatility estimate for each time point.
-    
+
     Weighting Formula:
         - Expanding window: 10%
-        - 2-year rolling: 25%  
+        - 2-year rolling: 25%
         - 6-month rolling: 25%
         - 10-day exponential: 40%
-        
+
     Note:
         The final result takes the maximum between the 10-day EWM and the
         weighted composite to ensure minimum volatility floor.
@@ -92,42 +92,45 @@ def get_risk_vol(data: pd.DataFrame) -> pd.Series:
     return ult
 
 
-def get_risk_ext(data: pd.DataFrame) -> pd.Series:
+from functools import partial
+
+
+def get_risk_ext(data: pd.DataFrame, tail_pct: float = 0.975) -> pd.Series:
     """
     Calculate composite risk extreme values using multiple timeframes.
-    
+
     Similar to get_risk_vol, but calculates extreme value estimates instead
     of standard deviations. This function applies the get_ext function across
     different time windows and combines them using the same weighting scheme.
-    
+
     Args:
         data (pd.DataFrame): DataFrame containing price data with a 'close' column.
                             Must have sufficient data points for calculations
                             (minimum 20 observations recommended).
-    
+
     Returns:
         pd.Series: Composite risk extreme value series with name 'risk_ext'.
                    Values represent extreme value estimates for each time point.
-    
+
     Weighting Formula:
         - Expanding window: 10%
         - 2-year rolling: 25%
         - 6-month rolling: 25%
         - 10-day rolling: 40%
-        
+
     Note:
         The final result takes the maximum between the 10-day estimate and the
         weighted composite to ensure a minimum extreme value floor.
         Uses rolling (not EWM) for the 10-day window unlike get_risk_vol.
     """
-    expnd = data.close.diff().expanding(min_periods=20).apply(get_ext)
-    two_yr = data.close.diff().rolling(252 * 2, min_periods=20).apply(get_ext)
-    six_m = data.close.diff().rolling(22 * 6, min_periods=20).apply(get_ext)
-    ten_d = data.close.diff().rolling(10).apply(get_ext)
-    
+    extreme_val = partial(get_ext, tail_pct=tail_pct)
+    expnd = data.close.diff().expanding(min_periods=20).apply(extreme_val)
+    two_yr = data.close.diff().rolling(252 * 2, min_periods=20).apply(extreme_val)
+    six_m = data.close.diff().rolling(22 * 6, min_periods=20).apply(extreme_val)
+    ten_d = data.close.diff().rolling(10).apply(extreme_val)
+
     ten_d = ten_d.ffill()
 
-    
     ult = expnd * 0.10 + two_yr * 0.25 + six_m * 0.25 + ten_d * 0.40
     ult = pd.concat([ten_d, ult], axis=1).max(axis=1).squeeze()
     ult.name = "risk_ext"
@@ -137,11 +140,11 @@ def get_risk_ext(data: pd.DataFrame) -> pd.Series:
 def spline_models_v2(df: pd.DataFrame, lb: int, qtile: float) -> list[UnivariateSpline]:
     """
     Create spline models for risk estimation using quantile-based approach (Version 2).
-    
+
     This function builds a series of univariate spline models, each trained on
     progressively more historical data. Each spline models the relationship between
     days-to-roll and volatility quantiles, allowing for forward-looking risk estimates.
-    
+
     Args:
         df (pd.DataFrame): DataFrame with time series data organized by year columns.
                           Expected to have datetime index and year-based columns.
@@ -149,19 +152,19 @@ def spline_models_v2(df: pd.DataFrame, lb: int, qtile: float) -> list[Univariate
                  Must be positive integer.
         qtile (float): Quantile level to use for volatility estimation.
                       Should be between 0 and 1 (e.g., 0.95 for 95th percentile).
-    
+
     Returns:
         list[UnivariateSpline]: List of fitted spline models, one for each year
                                in the dataset. Each spline maps days-to-roll to
                                expected volatility quantile values.
-    
+
     Algorithm:
         1. For each year, include data up to that year
         2. Calculate rolling standard deviations with specified lookback
         3. Compute quantiles across the rolling windows
         4. Fit univariate spline with degree 5 and adaptive smoothing
         5. Smoothing parameter scales with data variance and length
-    
+
     Note:
         The function includes commented plotting code for visualization.
         Splines use degree 5 (quintic) with variance-adjusted smoothing.
@@ -205,33 +208,33 @@ def spline_models_v2(df: pd.DataFrame, lb: int, qtile: float) -> list[Univariate
 def spline_models_v1(df: pd.DataFrame) -> list[UnivariateSpline]:
     """
     Create spline models for risk estimation using unified approach (Version 1).
-    
+
     This function builds univariate spline models using a different data structure
     than v2. It expects data in long format with specific columns and applies
     weighted fitting with emphasis on more recent observations.
-    
+
     Args:
         df (pd.DataFrame): DataFrame in long format with columns:
                           - 'last_date': Date identifier for temporal grouping
                           - 'days_to_roll': X-axis values (days until roll)
                           - 'value': Y-axis values (risk/volatility measures)
-    
+
     Returns:
         list[UnivariateSpline]: List of fitted spline models, one for each
                                unique last_date in chronological order.
                                Each spline maps days-to-roll to risk values.
-    
+
     Algorithm:
         1. Group data by last_date in chronological order
         2. For each group, fit spline with weighted observations
         3. Apply higher weights (5x) to first 20 observations
         4. Use variance-adjusted smoothing parameter
         5. Fit degree-5 splines for smooth interpolation
-    
+
     Weighting Strategy:
         - First 20 points: weight = 5 (emphasized recent data)
         - Remaining points: weight = 1 (standard weighting)
-    
+
     Note:
         This version includes commented visualization code.
         The weighting scheme prioritizes recent observations for better
@@ -271,11 +274,11 @@ def spline_models_v1(df: pd.DataFrame) -> list[UnivariateSpline]:
 def final_risk(data_nbadj, roll_index_date_map, skip_index, spline_models) -> pd.Series:
     """
     Calculate final risk estimates combining baseline risk with spline-based adjustments.
-    
+
     This function produces the ultimate risk estimate by comparing current volatility
     conditions against spline-modeled expectations and applying adjustments when
     current volatility appears insufficient relative to historical patterns.
-    
+
     Args:
         data_nbadj: DataFrame with risk data containing columns:
                    - 'risk_ext': Baseline risk extreme values
@@ -285,12 +288,12 @@ def final_risk(data_nbadj, roll_index_date_map, skip_index, spline_models) -> pd
                                    Each entry should have 'roll_index' key.
         skip_index (set/list): Roll indices to skip (use baseline risk only).
         spline_models (list): Pre-fitted spline models from spline_models_v1/v2.
-    
+
     Returns:
         pd.Series: Final risk estimates with original datetime index.
                    Values represent adjusted risk measures incorporating
                    both current conditions and modeled expectations.
-    
+
     Algorithm:
         1. For each observation, determine appropriate spline model
         2. Skip if no historical data or index in skip_index
@@ -298,18 +301,20 @@ def final_risk(data_nbadj, roll_index_date_map, skip_index, spline_models) -> pd
         4. If current volatility >= modeled expectation: use baseline risk
         5. If current volatility < modeled expectation: adjust risk upward
         6. Adjustment uses quadratic combination: sqrt(baseline² + adjustment²)
-    
+
     Risk Adjustment Logic:
         - No adjustment needed: current_vol >= spline_prediction
         - Adjustment required: current_vol < spline_prediction
         - New risk = sqrt(baseline_risk² + (spline_prediction - current_vol)²)
-    
+
     Note:
         This approach ensures risk estimates never fall below modeled expectations
         while preserving baseline risk characteristics when conditions are normal.
     """
     if len(skip_index) != 0:
-        print("[!] We'll be skipping some roll-wise spline models (len(skip_index) != 0)")
+        print(
+            "[!] We'll be skipping some roll-wise spline models (len(skip_index) != 0)"
+        )
         print("\t[!]", skip_index)
     frisk = []
     for ts in data_nbadj.itertuples():

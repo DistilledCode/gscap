@@ -133,7 +133,6 @@ def get_synth_slices(data: pd.DataFrame):
 
     index_slices = [
         data.index[0],
-        # *data[data.days_to_roll.dt.days == 0].index,
         *data[data.days_to_roll.shift(-1).dt.days.diff().ge(0)].index,
         data.index[-1],
     ]

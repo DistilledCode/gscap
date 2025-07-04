@@ -7,6 +7,8 @@ from pathlib import Path
 import pandas as pd
 
 SRC_DIR = Path(__file__).parent.parent
+CACHE_DIR = Path.home() / ".gscap"
+CACHE_DIR.mkdir(exist_ok=True)
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 warnings.simplefilter(action="ignore", category=RuntimeWarning)

@@ -10,6 +10,7 @@ import gscap.metrics as metrics
 from gscap import SRC_DIR
 
 LINE_WIDTH = 1.25
+DEFAULT_FIGSIZE = (10, 6)
 
 
 def set_style():
@@ -60,10 +61,8 @@ def drawdown(
     fill=True,
     show=False,
 ):
-    # return_series = _resample_series(return_series, "D")
     return_series = return_series.resample("D").sum(min_count=1).dropna()
     if benchmark is not None:
-        # benchmark = _resample_series(benchmark, "D")
         benchmark = benchmark.resample("D").sum(min_count=1).dropna()
 
     if cumulative ^ compound is False:
@@ -95,9 +94,14 @@ def drawdown(
     )
 
 
-def position(position_series: pd.Series, benchmark: pd.Series = None, fill=False):
+def position(
+    position_series: pd.Series,
+    benchmark: pd.Series = None,
+    fill=False,
+    figsize=None,
+):
     position_series = position_series.dropna()
-    if benchmark is not False:
+    if benchmark is not None:
         benchmark = benchmark.dropna()
 
     return qsplot.plot_timeseries(
@@ -111,7 +115,7 @@ def position(position_series: pd.Series, benchmark: pd.Series = None, fill=False
         fontname="Fira Code",
         ylabel="Position Size",
         show=False,
-        figsize=(12, 6),
+        figsize=figsize or (10, 6),
         percent=False,
     )
 
@@ -276,6 +280,7 @@ def returns(
     show=False,
     title="Returns",
     starting_capital=None,
+    figsize=(10, 6),
 ):
     return_series = return_series.resample("D").sum(min_count=1).dropna()
     if benchmark is not None:
@@ -317,7 +322,7 @@ def returns(
         title=_title,
         fontname="Fira Code",
         ylabel=ylabel,
-        figsize=(10, 6),
+        figsize=figsize or (10, 6),
         show=show,
         percent=percent,
     )
@@ -402,84 +407,3 @@ def rolling_sharpe(
         subtitle=True,
         show=show,
     )
-
-
-# def volatility(df, rolling_window=14, annualize=True):
-
-#     fig = go.Figure()
-
-#     for contract in df:
-#         fig.add_trace(
-#             go.Scatter(
-#                 x=df[contract].index,
-#                 y=metrics.equi_vol(
-#                     df[contract],
-#                     rolling_window=rolling_window,
-#                     annualize=annualize,
-#                 ),
-#                 name=contract,
-#             )
-#         )
-
-#     if annualize:
-#         _title = f"Annualized Rolling Volatility ({rolling_window} days)"
-#     else:
-#         _title = f"Daily Rolling Volatility ({rolling_window} days)"
-#     fig.update_layout(
-#         title=_title,
-#         yaxis_title="Volatility",
-#         # height=600,
-#         # width=1400,
-#         legend=dict(
-#             title="Instruments",
-#             itemclick="toggle",
-#             itemdoubleclick="toggleothers",
-#             orientation="v",
-#         ),
-#     )
-#     fig.update_xaxes(rangeslider_visible=True)
-#     fig.show()
-
-
-# def vol_of_vol(df, rolling_window=14, annualize=True):
-
-#     _vol = metrics.equi_vol(
-#         df,
-#         rolling_window=rolling_window,
-#         annualize=annualize,
-#     )
-
-#     fig = go.Figure()
-
-#     for contract in _vol.columns:
-#         fig.add_trace(
-#             go.Scatter(
-#                 x=_vol[contract].index,
-#                 y=metrics.equi_vol(
-#                     _vol[contract],
-#                     rolling_window=rolling_window,
-#                     annualize=annualize,
-#                 ),
-#                 name=contract,
-#             )
-#         )
-
-#     if annualize:
-#         _title = f"Volatility (Annualized {rolling_window} days rolling)"
-#     else:
-#         _title = f"Volatility (Daily {rolling_window} days rolling)"
-#     _title = "Volatility of " + _title
-#     fig.update_layout(
-#         title=_title,
-#         yaxis_title="Volatility of Volatility",
-#         # height=600,
-#         # width=1400,
-#         legend=dict(
-#             title="Instruments",
-#             itemclick="toggle",
-#             itemdoubleclick="toggleothers",
-#             orientation="v",
-#         ),
-#     )
-#     fig.update_xaxes(rangeslider_visible=True)
-#     fig.show()
